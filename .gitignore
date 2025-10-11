@@ -1,6 +1,8 @@
 /node_modules
 
 .env*
+.env.development
+.env.secrets
 !.env.example
 
 *.log
