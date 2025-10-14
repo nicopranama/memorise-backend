@@ -5,7 +5,7 @@ import fs from 'fs';
 
 /* Cara pemakaian:
    import { logger } from '../shared/utils/logger.js';
-   logger.info('Server started on port 5000);
+   logger.info('Server started on port 5000');
    logger.error('Error connecting to database');
    Note: Production hanya menampilkan log dengan level info, warn, error,
    Development menampilkan semua level log (termasuk debug)
