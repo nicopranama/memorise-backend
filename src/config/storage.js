@@ -4,19 +4,22 @@ import dotenv from 'dotenv';
 import { logger } from '../shared/utils/logger.js';
 
 dotenv.config();
-const provider = process.env.STORAGE_PROVIDER || 'minio';
 
-const validateConfig = (config, requireFields) => {
-    const missing = requireFields.filter(field => !config[field]);
+const provider = process.env.STORAGE_PROVIDER || 'minio';
+const bucket = process.env.STORAGE_BUCKET || 'memorise-files';
+const region = process.env.AWS_REGION || 'ap-southeast-3';
+
+const validateConfig = (config, requiredFields) => {
+    const missing = requiredFields.filter(f => !config[f]);
     if (missing.length > 0) {
         throw new Error(`Missing required storage config: ${missing.join(', ')}`);
     }
 };
 
 let storageClient = null;
-let storageConfig = {};
+let endpointInfo = null;
 
-if  (provider === 'minio') {
+if (provider === 'minio') {
     const minioConfig = {
         endPoint: process.env.STORAGE_ENDPOINT?.replace(/^https?:\/\//, '') || 'localhost',
         port: Number(process.env.STORAGE_PORT) || 9000,
@@ -30,23 +33,17 @@ if  (provider === 'minio') {
     } else {
         minioConfig.accessKey = minioConfig.accessKey || 'minioadmin';
         minioConfig.secretKey = minioConfig.secretKey || 'minioadmin';
-        logger.warn('Using default MinIO credentials for development');
     }
 
     storageClient = new MinioClient(minioConfig);
-    storageConfig = {
-        provider: 'minio',
-        bucket: process.env.STORAGE_BUCKET || 'memorise-files',
-        client: storageClient,
-        endpoint: `${minioConfig.useSSL ? 'https' : 'http'}://${minioConfig.endPoint}:${minioConfig.port}`,
-    };
+    endpointInfo = `${minioConfig.useSSL ? 'https' : 'http'}://${minioConfig.endPoint}:${minioConfig.port}`;
+    logger.info(`Storage provider configured: MinIO at ${endpointInfo}`);
 
-    logger.info(`Storage: MinIO at ${storageConfig.endpoint}`);
 } else if (provider === 's3') {
     const s3Config = {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || 'ap-southeast-3',
+        region: region,
     };
 
     if (process.env.NODE_ENV === 'production') {
@@ -54,7 +51,6 @@ if  (provider === 'minio') {
     }
 
     AWS.config.update(s3Config);
-
     storageClient = new AWS.S3({
         apiVersion: '2006-03-01',
         signatureVersion: 'v4',
@@ -64,65 +60,15 @@ if  (provider === 'minio') {
         }),
     });
 
-    storageConfig = {
-        provider: 's3',
-        bucket: process.env.STORAGE_BUCKET || 'memorise-files',
-        region: s3Config.region,
-        client: storageClient,
-    };
-
-    logger.info(`Storage: AWS S3 in ${s3Config.region}`);
+    endpointInfo = region;
+    logger.info(`Storage provider configured: AWS S3 in ${region}`);
 } else {
-    throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}. Use 'minio' or 's3'.`);
+    throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}`);
 }
 
-export const checkStorageHealth = async () => {
-    try {
-        const bucket = storageConfig.bucket;
+export const storageConfig = { provider, bucket, region, endpoint: endpointInfo };
 
-        if (provider === 'minio') {
-            const exists = await storageClient.bucketExists(bucket);
-            if (!exists) {
-                logger.warn(`MinIO bucket '${bucket}' does not exist`);
-                return { healthy: false, error: 'Bucket not found'};
-            }
-        } else if (provider === 's3') {
-            await storageClient.headBucket({ Bucket: bucket }).promise();
-        }
-
-        return {
-            healthy: true,
-            provider,
-            bucket,
-            endpoint: storageConfig.endpoint || storageConfig.region
-        };
-    } catch (error) {
-        logger.error('Storage health check failed:', error.message);
-        return {
-            healthy: false,
-            provider,
-            error: error.message
-        };
-    }
+export const getStorageClient = () => {
+    if (!storageClient) throw new Error('Storage client not initialized');
+    return storageClient;
 };
-
-export const initializeStorage = async () => {
-  if (provider !== 'minio') return;
-
-  try {
-    const bucket = storageConfig.bucket;
-    const exists = await storageClient.bucketExists(bucket);
-    
-    if (!exists) {
-      await storageClient.makeBucket(bucket, storageConfig.region || 'ap-southeast-3');
-      logger.info(`Created MinIO bucket: ${bucket}`);
-    } else {
-      logger.info(`MinIO bucket exists: ${bucket}`);
-    }
-  } catch (error) {
-    logger.error('Failed to initialize storage:', error);
-    throw error;
-  }
-};
-
-export { storageConfig, storageClient };
