@@ -1,6 +1,4 @@
-import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
-import { logger } from '../shared/utils/logger.js';
 
 dotenv.config();
 
@@ -28,7 +26,7 @@ if (NODE_ENV === 'production') {
 
 const port = Number(EMAIL_PORT) || 587;
 
-const transportConfig = {
+export const transportConfig = {
     host: EMAIL_HOST,
     port,
     secure: port === 465,

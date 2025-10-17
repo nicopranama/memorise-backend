@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { getStorageClient, storageConfig } from '../../../config/storage.js';
 import { logger } from '../../../shared/utils/logger.js';
-import File from '../models/file.model.js';
+import File from '../models/file-model.js';
 import {
   cacheFileMetadata,
   getCachedFileMetadata,

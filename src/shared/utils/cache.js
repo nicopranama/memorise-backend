@@ -52,14 +52,6 @@ export const getCachedPresignedUrl = async (fileId) => {
     }
 };
 
-export const invalidateFileCache = async (fileId) => {
-    if (!fileId) {
-        logger.warn('InvalidateFileCache called with no fileId');
-        return;
-    }
-    await invalidateMultipleFiles([fileId]);
-};
-
 export const invalidateMultipleFiles = async (fileIds) => {
     try {
         if (!fileIds?.length) {
@@ -79,6 +71,14 @@ export const invalidateMultipleFiles = async (fileIds) => {
     } catch (error) {
         logger.error(`Redis invalidateMultipleFiles failed: ${error.message}`);
     }
+};
+
+export const invalidateFileCache = async (fileId) => {
+    if (!fileId) {
+        logger.warn('InvalidateFileCache called with no fileId');
+        return;
+    }
+    await invalidateMultipleFiles([fileId]);
 };
 
 export const acquireIdempotencyLock = async (key, ttl = 3600) => {

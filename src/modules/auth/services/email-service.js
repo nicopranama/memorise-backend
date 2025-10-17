@@ -1,8 +1,8 @@
+import nodemailer from 'nodemailer';
 import { logger } from '../../../shared/utils/logger.js';
 import { transportConfig, emailDefaultFrom } from '../../../config/email.js';
 import EmailLog from '../models/email-log.js';
 import { getRedisClient } from '../../../shared/services/redis-service.js';
-import nodemailer from 'nodemailer';
 
 let transporter = null;
 let isVerified = false;
