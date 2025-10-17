@@ -57,7 +57,7 @@ export const sendEmail = async (options, idempotencyKey = null, ttlSeconds = 600
             const redis = getRedisClient();
             const lockAcquired = await redis.set(`idempotency:email:${idempotencyKey}`, 'locked', 'NX', 'EX', ttlSeconds);
             if (!lockAcquired) {
-                logger.warn(`📧 Duplicate email send prevented by Redis lock: ${idempotencyKey}`);
+                logger.warn(`Duplicate email send prevented by Redis lock: ${idempotencyKey}`);
                 return { status: 'skipped', reason: 'duplicate_redis'};
             }
         } catch (err) {

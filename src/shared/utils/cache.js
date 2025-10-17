@@ -98,3 +98,12 @@ export const acquireIdempotencyLock = async (key, ttl = 3600) => {
     }
 };
 
+export const releaseIdempotencyLock = async (key) => {
+    try {
+        const client = getRedisClient();
+        await client.del(`${IDEMPOTENCY_PREFIX}${key}`);
+    } catch (error) {
+        logger.error(`Redis releaseIdempotencyLock failed: ${error.message}`);
+    }
+};
+
