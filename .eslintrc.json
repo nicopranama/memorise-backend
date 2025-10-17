@@ -18,6 +18,7 @@
     "class-methods-use-this": "off",
     "no-underscore-dangle": "off",
     "consistent-return": "off",
-    "no-param-reassign": "off"
+    "no-param-reassign": "off",
+    "import/extensions": ["error", "always", { "js": "always" }]
   }
 }
