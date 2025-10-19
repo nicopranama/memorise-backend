@@ -37,9 +37,7 @@ const devFormat = combine(
     errors({ stack: true }),
     align(),
     splat(),
-    printf(({ timestamp, level, message, label, stack }) => {
-        return `${timestamp} [${label}] ${level}: ${stack || message}`;
-    })
+    printf(({ time, level, message, service, stack }) => `${time} [${service}] ${level}: ${stack || message}`)
 );
 
 const prodFormat = combine(

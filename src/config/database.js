@@ -24,5 +24,5 @@ const options = {
 
 export const databaseConfig = {
   uri: databaseURI,
-  options: options,
+  options,
 };
