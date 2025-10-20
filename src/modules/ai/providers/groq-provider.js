@@ -4,7 +4,7 @@ import { logger } from '../../../shared/utils/logger.js';
 
 export class GroqProvider extends BaseAIProvider {
     constructor(config) {
-        const apiKey = getApiKey('Groq');
+        const apiKey = getApiKey('groq');
         super({ ...config, provider: 'groq' }, apiKey, { logger });
     }
 
