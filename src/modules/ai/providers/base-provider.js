@@ -23,7 +23,7 @@ export class BaseAIProvider {
     async generate(prompt, options = {}, isFallback = false) {
         this.logGeneration(prompt, options);
         const merged = this.mergeOptions(options);
-        const url = this.buildApiUtl('generate');
+        const url = this.buildApiUrl('generate');
         const headers = this.getRequestHeaders();
         const body = this.buildRequestBody(prompt, merged);
 
@@ -46,11 +46,11 @@ export class BaseAIProvider {
             }
 
             const result = this.parseResponse(data);
-            return { ...result, provdier: this.providerName };
+            return { ...result, provider: this.providerName };
         } catch (err) {
             this.logger.error(`[${this.providerName}] Generation failed: ${err.message}`);
 
-            if (!isFallback && this.fallbackEnabled  && aiConfig.fallback) {
+            if (!isFallback && this.fallbackEnabled && aiConfig.fallback) {
                 const { provider } = aiConfig.fallback;
                 this.logger.warn(`[${this.providerName}] Switching to fallback provider: ${provider}`);
 
@@ -79,13 +79,13 @@ export class BaseAIProvider {
         return `${this.config.baseUrl}/${endpoint}`;
     }
 
-    getRequestHeader() {
+    getRequestHeaders() {
         return {
             'Content-Type': 'application/json',
         };
     }
 
-    async checkrateLimit() {
+    async checkRateLimit() {
         const { requestsPerMinute } = this.config.rateLimit || {};
         if (requestsPerMinute) {
             this.logger.debug(`[${this.providerName}] Rate limit check`, { requestsPerMinute });
