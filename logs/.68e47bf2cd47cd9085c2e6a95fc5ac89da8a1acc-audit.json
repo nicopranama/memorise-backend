@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "C:\\memorise-backend\\logs\\.68e47bf2cd47cd9085c2e6a95fc5ac89da8a1acc-audit.json",
+    "files": [
+        {
+            "date": 1761026444070,
+            "name": "C:\\memorise-backend\\logs\\2025-10-21-rejections.log",
+            "hash": "057a40a479b909fc4cb163ee6870b2bf2de8d9746f92332c067637d468a155ec"
+        }
+    ],
+    "hashType": "sha256"
+}

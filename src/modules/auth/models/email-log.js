@@ -26,7 +26,7 @@ const emailLogSchema = new mongoose.Schema({
     error: {
         type: mongoose.Schema.Types.Mixed
     },
-    idompotencykey: {
+    idempotencyKey: {
         type: String,
         index: true,
         sparse: true
