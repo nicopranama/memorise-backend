@@ -3,15 +3,14 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import hpp from 'hpp';
-import { sanitizeRequest } from './shared/middleware/sanitize.js';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-
+import { sanitizeRequest } from './shared/middleware/sanitize.js';
+import { globalErrorHandler } from './shared/middleware/error-handler.js';
 import { logger } from './shared/utils/logger.js';
 
 const app = express();
 
-// Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -87,24 +86,17 @@ app.use('/api/users', userRoutes);
 // app.use('/api/decks', deckRoutes);
 
 // Global error handler
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', err);
-  
-  // Don't leak error details in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
-  
-  res.status(err.status || 500).json({
-    error: isDevelopment ? err.message : 'Internal server error',
-    ...(isDevelopment && { stack: err.stack })
-  });
-});
+app.use(globalErrorHandler);
 
-// 404 handler
+// 404 handler (setelah error handler global)
 app.use((req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl,
-    method: req.method
+  return res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    details: {
+        path: req.originalUrl,
+        method: req.method
+    }
   });
 });
 

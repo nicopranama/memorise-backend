@@ -6,7 +6,7 @@ import {
   deleteAccount,
   getUserStats
 } from '../controllers/user-controller.js';
-import { authenticate, requireEmailVerification } from '../middleware/auth-middleware.js';
+import { authenticate, requireEmailVerification } from '../middleware/index.js';
 import {
   validate,
   updateProfileSchema,

@@ -13,6 +13,7 @@
     "sourceType": "module"
   },
   "rules": {
+    "arrow-body-style": "off",
     "no-console": "off",
     "import/no-extraneous-dependencies": "off",
     "class-methods-use-this": "off",

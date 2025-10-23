@@ -19,7 +19,7 @@ import {
   resetPasswordSchema,
   refreshTokenSchema
 } from '../validators/auth-validators.js';
-import { authRateLimit } from '../middleware/auth-middleware.js';
+import { authRateLimit } from '../middleware/auth-rate-limit.js';
 
 const router = express.Router();
 
