@@ -17,13 +17,11 @@ import {
   resendVerificationSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  refreshTokenSchema
+  refreshTokensSchema
 } from '../validators/auth-validators.js';
 import { authRateLimit } from '../middleware/auth-rate-limit.js';
 
 const router = express.Router();
-
-// Public routes (no authentication required)
 
 // Register new user
 router.post('/register', 
@@ -68,11 +66,10 @@ router.post('/reset-password',
 
 // Refresh access token
 router.post('/refresh-token',
-  validate(refreshTokenSchema),
+  validate(refreshTokensSchema),
   refreshToken
 );
 
-// Logout user (public endpoint, mainly for client-side token cleanup)
 router.post('/logout', logout);
 
 export default router;

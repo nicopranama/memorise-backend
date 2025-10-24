@@ -19,6 +19,16 @@
             "date": 1761219439794,
             "name": "C:\\memorise-backend\\logs\\2025-10-23-rejections.log",
             "hash": "b6e5076b3faa5da24afecf66600002e4afaf0bf0b906344880c15a8fab5be2b3"
+        },
+        {
+            "date": 1761266095661,
+            "name": "C:\\memorise-backend\\logs\\2025-10-24-rejections.log",
+            "hash": "e27d23d18c9516e74c8e28a8d1c7a382f0c21f2f0b5ef3661c679f7598bf0ee5"
+        },
+        {
+            "date": 1761325833112,
+            "name": "C:\\memorise-backend\\logs\\2025-10-25-rejections.log",
+            "hash": "07df539e9889d414c1b44c8d699220776e53a7899a9f08042ef2624c75e9dd1f"
         }
     ],
     "hashType": "sha256"

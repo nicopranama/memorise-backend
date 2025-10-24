@@ -8,7 +8,7 @@ import * as UserService from '../services/user-service.js';
  */
 export const getProfile = asyncHandler(async (req, res) => {
   const user = await UserService.getUserProfile(req.user._id);
-  return successResponse(res, 200, { user });
+  return successResponse(res, 200, { data: { user } });
 });
 
 /**
@@ -19,7 +19,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const updatedUser = await UserService.updateUserProfile(req.user._id, req.body);
   return successResponse(res, 200, {
     message: 'Profile updated successfully',
-    user: updatedUser,
+    data: { user: updatedUser },
   });
 });
 
@@ -44,10 +44,37 @@ export const deleteAccount = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/users/email-verification-status
+ * Check email verification status
+ */
+export const getEmailVerificationStatus = asyncHandler(async (req, res) => {
+  const isVerified = req.user.isEmailVerified;
+  return successResponse(res, 200, { 
+    message: isVerified ? 'Email is verified' : 'Email verification required',
+    data: { 
+      isEmailVerified: isVerified 
+    }
+  });
+});
+
+/**
+ * POST /api/users/check-password-strength
+ * Check password strength
+ */
+export const checkPasswordStrength = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const result = await UserService.checkPasswordStrengthService(password);
+  return successResponse(res, 200, { 
+    message: 'Password strength checked',
+    strength: result 
+  });
+});
+
+/**
  * GET /api/users/stats
  * Get user statistics
  */
 export const getUserStats = asyncHandler(async (req, res) => {
   const stats = await UserService.getUserStatsService(req.user._id);
-  return successResponse(res, 200, { stats });
+  return successResponse(res, 200, { data: { stats } });
 });

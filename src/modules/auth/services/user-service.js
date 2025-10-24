@@ -1,11 +1,13 @@
 import User from "../models/user-model.js";
 import { logger } from "../../../shared/utils/logger.js";
+import { sanitizeUserData } from "../utils/auth-utils.js";
+import { checkPasswordStrength } from "../services/password-service.js";
 
 export const getUserProfile = async (userId) => {
     const user = await User.findById(userId);
     if (!user || user.isDeleted) throw new Error('USER_NOT_FOUND: User not found');
 
-    return {
+    return sanitizeUserData({
         id: user._id,
         email: user.email,
         firstName: user.firstName,
@@ -17,7 +19,7 @@ export const getUserProfile = async (userId) => {
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
-    };
+    });
 };
 
 export const updateUserProfile = async (userId, updates) => {
@@ -35,7 +37,7 @@ export const updateUserProfile = async (userId, updates) => {
     if (!updatedUser) throw new Error('USER_NOT_FOUND: User not found');
 
     logger.info(`User profile updated: ${updatedUser.email}`);
-    return updateUserProfile.toJSON ? updatedUser.toJSON() : updatedUser;
+    return sanitizeUserData(updatedUser.toJSON ? updatedUser.toJSON() : updatedUser);
 };
 
 export const changeUserPassword = async (userId, currentPassword, newPassword) => {
@@ -53,7 +55,7 @@ export const changeUserPassword = async (userId, currentPassword, newPassword) =
 };
 
 export const deleteUserAccount = async (userId, password) => {
-    const user = User.findById(userId);
+    const user = await User.findById(userId);
     if (!user) throw new Error('USER_NOT_FOUND: User not found');
 
     const isMatch = await user.comparePassword(password);
@@ -62,6 +64,10 @@ export const deleteUserAccount = async (userId, password) => {
     await user.softDelete();
     logger.info(`User account soft deleted: ${user.email}`);
     return true;
+};
+
+export const checkPasswordStrengthService = async (password) => {
+    return checkPasswordStrength(password);
 };
 
 export const getUserStatsService = async (userId) => {

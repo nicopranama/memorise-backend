@@ -182,11 +182,11 @@ userSchema.methods.resetLoginAttempts = function() {
   });
 };
 
-userSchema.methods.softDelete = function() {
+userSchema.methods.softDelete = async function() {
   this.isDeleted = true;
   this.deletedAt = new Date();
   this.isActive = false;
-  return this.save();
+  return await this.save();
 };
 
 userSchema.statics.findActive = function() {

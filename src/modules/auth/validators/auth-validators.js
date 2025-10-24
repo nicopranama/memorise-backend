@@ -53,7 +53,7 @@ export const resetPasswordSchema = Joi.object({
 });
 
 // Refresh token validation
-export const refreshTokenSchema = Joi.object({
+export const refreshTokensSchema = Joi.object({
   refreshToken: refreshTokenSchema
 });
 
@@ -77,6 +77,11 @@ export const updateProfileSchema = Joi.object({
 export const changePasswordSchema = Joi.object({
   currentPassword: Joi.string().required(),
   newPassword: passwordSchema
+});
+
+// Check password strength validation
+export const checkPasswordStrengthSchema = Joi.object({
+  password: Joi.string().required()
 });
 
 // Re-export common validators for convenience

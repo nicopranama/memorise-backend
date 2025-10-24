@@ -19,6 +19,16 @@
             "date": 1761219439780,
             "name": "C:\\memorise-backend\\logs\\2025-10-23-exceptions.log",
             "hash": "051bda8e9b05080e9964ee21eb3943d27b381648f9741c8ef3d08ee8bd222491"
+        },
+        {
+            "date": 1761266095655,
+            "name": "C:\\memorise-backend\\logs\\2025-10-24-exceptions.log",
+            "hash": "269dc0196652cf6e2a5cc3500b1e4614e266758c562f38828e95575c2d5e4497"
+        },
+        {
+            "date": 1761325833102,
+            "name": "C:\\memorise-backend\\logs\\2025-10-25-exceptions.log",
+            "hash": "17cd948e4e132b62b3003edf02673867986c5a38556509456cf32f112aaed2e4"
         }
     ],
     "hashType": "sha256"

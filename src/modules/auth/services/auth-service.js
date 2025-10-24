@@ -7,6 +7,14 @@ import { emailVerificationTemplate, emailVerificationResendTemplate } from '../t
 import { passwordResetTemplate } from '../templates/password-reset.js';
 import { logger } from '../../../shared/utils/logger.js';
 import { jwtConfig } from '../../../config/jwt.js';
+import { 
+  generateVerificationLink, 
+  generateResetLink, 
+  generateResetToken, 
+  generateEmailVerificationToken,
+  generateIdempotencyKey,
+  sanitizeUserData 
+} from '../utils/auth-utils.js';
 
 export const registerUser = async ({ email, password, firstName, lastName }) => {
     const existingUser = await User.findByEmail(email);
@@ -17,22 +25,13 @@ export const registerUser = async ({ email, password, firstName, lastName }) => 
     const user = new User({ email, password, firstName, lastName});
     await user.save();
 
-    const emailVerificationToken = jwt.sign(
-        {
-            userId: user._id,
-            type: 'email_verification',
-            iss: jwtConfig.issuer,
-            aud: jwtConfig.audience,
-        },
-        process.env.JWT_ACCESS_SECRET,
-        { expiresIn: jwtConfig.verifyEmailExpiration }
-    );
+    const emailVerificationToken = generateEmailVerificationToken(user._id);
 
     user.emailVerificationToken = emailVerificationToken;
     await user.save();
 
     try {
-        const verificationLink = `${process.env.FRONTEND_URL || '#'}/verify-email?token=${emailVerificationToken}`;
+        const verificationLink = generateVerificationLink(emailVerificationToken);
         const htmlContent = emailVerificationTemplate(
             user.firstName, 
             verificationLink, 
@@ -43,7 +42,7 @@ export const registerUser = async ({ email, password, firstName, lastName }) => 
             to: user.email,
             subject: 'Verify Your Email - Memorise',
             html: htmlContent
-        }, `email_verification_${user._id}`, 86400); 
+        }, generateIdempotencyKey('email_verification', user._id), 86400); 
     } catch (error) {
         logger.error('Failed to send verification email during registration:', error);
     }
@@ -52,13 +51,13 @@ export const registerUser = async ({ email, password, firstName, lastName }) => 
     logger.info(`New user registered: ${user.email}`);
 
     return {
-        user: {
+        user: sanitizeUserData({
             id: user._id,
             email: user.email,
             firstName: user.firstName,
             lastName: user.lastName,
             isEmailVerified: user.isEmailVerified,
-        },
+        }),
         tokens
     };
 };
@@ -90,7 +89,7 @@ export const verifyUserEmailByToken = async (token) => {
     await user.save();
 
     logger.info(`Email verified for user: ${user.email}`);
-    return user.toJSON ? user.toJSON() : user;
+    return sanitizeUserData(user.toJSON ? user.toJSON() : user);
 };
 
 export const resendVerificationEmailService = async (email) => {
@@ -104,22 +103,13 @@ export const resendVerificationEmailService = async (email) => {
         throw new Error('AUTH_BAD_REQUEST: Email is already verified');
     }
 
-    const emailVerificationToken = jwt.sign(
-        {
-            userId: user._id,
-            type: 'email_verification',
-            iss: jwtConfig.issuer,
-            aud: jwtConfig.audience,
-        },
-        process.env.JWT_ACCESS_SECRET,
-        { expiresIn: jwtConfig.verifyEmailExpiration }
-    );
+    const emailVerificationToken = generateEmailVerificationToken(user._id);
 
     user.emailVerificationToken = emailVerificationToken;
     await user.save();
 
     try {
-        const verificationLink = `${process.env.FRONTEND_URL || '#'}/verify-email?token=${emailVerificationToken}`;
+        const verificationLink = generateVerificationLink(emailVerificationToken);
         const htmlContent = emailVerificationResendTemplate(
             user.firstName, 
             verificationLink, 
@@ -130,7 +120,7 @@ export const resendVerificationEmailService = async (email) => {
             to: user.email,
             subject: 'Verify Your Email - Memorise (Resend)',
             html: htmlContent
-        }, `email_verification_${user._id}_${Date.now()}`, 86400);
+        }, generateIdempotencyKey('email_verification_resend', user._id), 86400);
         
     } catch (error) {
         logger.error(`Failed to resend verification email to ${email}:`, error);
@@ -164,7 +154,7 @@ export const loginUser = async({ email, password }) => {
     const tokens = generateAuthTokens(user);
 
     logger.info(`User logged in: ${user.email}`);
-    return { user: user.toJSON ? user.toJSON() : user, tokens};
+    return { user: sanitizeUserData(user.toJSON ? user.toJSON() : user), tokens};
 };
 
 export const refreshAccessTokenService = async (refreshToken) => {
@@ -181,7 +171,7 @@ export const refreshAccessTokenService = async (refreshToken) => {
     }
 
     const tokens = generateAuthTokens(user);
-    return { user: user.toJSON ? user.toJSON() : user, tokens};
+    return { user: sanitizeUserData(user.toJSON ? user.toJSON() : user), tokens};
 };
 
 export const requestPasswordResetService = async (email) => {
@@ -191,14 +181,15 @@ export const requestPasswordResetService = async (email) => {
         return true;
     }
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetToken = generateResetToken();
     const resetExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = resetExpires;
+    await user.save(); 
 
     try {
-        const resetLink = `${process.env.FRONTEND_URL || '#'}/reset-password?token=${resetToken}`;
+        const resetLink = generateResetLink(resetToken);
         const htmlContent = passwordResetTemplate(
             user.firstName, 
             resetLink, 
@@ -209,7 +200,7 @@ export const requestPasswordResetService = async (email) => {
             to: user.email,
             subject: 'Reset Your Password - Memorise',
             html: htmlContent
-        }, `password_reset_${user._id}_${Date.now()}`, 600);
+        }, generateIdempotencyKey('password_reset', user._id), 600);
     } catch (error) {
         logger.error(`Failed to send password reset email to ${email}:`, error);
         throw new Error('EMAIL_ERROR: Failed to send password reset email.'); 
@@ -218,4 +209,28 @@ export const requestPasswordResetService = async (email) => {
     logger.info(`Password reset email initiated for: ${email}`);
     return true;
 
+};
+
+export const resetPasswordService = async (token, newPassword) => {
+    const user = await User.findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: Date.now() },
+        isDeleted: false
+    });
+
+    if (!user) throw new Error('AUTH_BAD_REQUEST: Invalid or expired password reset token');
+
+    user.password = newPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+
+    try {
+        await user.save();
+    } catch (error) {
+        logger.error(`Failed to save new password for ${user.email}:`, error);
+        throw new Error('DB_ERROR: Failed to update password')
+    }
+
+    logger.info(`Password reset successful for user: ${user.email}`);
+    return sanitizeUserData(user.toJSON ? user.toJSON() : user);
 };
