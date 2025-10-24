@@ -18,6 +18,12 @@ import {
 
 const router = express.Router();
 
+// Check password strength (public endpoint - no auth required)
+router.post('/check-password-strength', 
+  optionalAuth, 
+  validate(checkPasswordStrengthSchema),
+  checkPasswordStrength
+);
 // All user routes require authentication
 router.use(authenticate);
 
@@ -41,13 +47,6 @@ router.put('/profile',
 router.get('/stats', 
   requireEmailVerification, 
   getUserStats
-);
-
-// Check password strength (public endpoint - no auth required)
-router.post('/check-password-strength', 
-  optionalAuth, 
-  validate(checkPasswordStrengthSchema),
-  checkPasswordStrength
 );
 
 // Change password

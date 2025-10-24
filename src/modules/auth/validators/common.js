@@ -1,6 +1,5 @@
 import Joi from 'joi';
 
-// Common validation patterns
 export const emailSchema = Joi.string().email().lowercase().trim().required();
 
 export const passwordSchema = Joi.string().min(8).max(128).required()

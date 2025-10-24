@@ -1,4 +1,3 @@
-// Export all auth components for easy importing
 export { default as User } from './models/user-model.js';
 export { default as EmailLog } from './models/email-log.js';
 
