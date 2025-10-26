@@ -50,8 +50,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Compression middleware
 app.use(compression());
-
-// HTTP Parameter Pollution protection
 app.use(hpp());
 
 // MongoDB injection protection
@@ -82,7 +80,7 @@ import userRoutes from './modules/auth/routes/user-routes.js';
 import folderRoutes from './modules/deck/routes/folder-routes.js';
 import deckRoutes from './modules/deck/routes/deck-routes.js';
 import cardRoutes from './modules/deck/routes/card-routes.js';
-import homeRoutes from './modules/deck/home-routes.js';
+import homeRoutes from './modules/deck/routes/home-routes.js';
 
 // API routes
 app.use('/api/auth', authRoutes);

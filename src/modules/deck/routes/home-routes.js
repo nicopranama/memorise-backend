@@ -1,6 +1,6 @@
 import express from 'express';
-import { authenticate } from '../auth/middleware/authenticate.js'; 
-import { getHomeData } from './controllers/deck-controller.js';
+import { authenticate } from '../../auth/middleware/authenticate.js';
+import { getHomeData } from '../controllers/deck-controller.js'; 
 
 const router = express.Router();
 
