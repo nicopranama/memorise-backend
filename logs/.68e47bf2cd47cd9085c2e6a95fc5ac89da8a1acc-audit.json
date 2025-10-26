@@ -29,6 +29,11 @@
             "date": 1761325833112,
             "name": "C:\\memorise-backend\\logs\\2025-10-25-rejections.log",
             "hash": "07df539e9889d414c1b44c8d699220776e53a7899a9f08042ef2624c75e9dd1f"
+        },
+        {
+            "date": 1761476831164,
+            "name": "C:\\memorise-backend\\logs\\2025-10-26-rejections.log",
+            "hash": "ba26e87338be9a5b98a2a28523b1468dd4c9ed0ef437f605f2d9878f79e46bbd"
         }
     ],
     "hashType": "sha256"

@@ -79,11 +79,18 @@ app.get('/health', (req, res) => {
 // Import routes
 import authRoutes from './modules/auth/routes/auth-routes.js';
 import userRoutes from './modules/auth/routes/user-routes.js';
+import folderRoutes from './modules/deck/routes/folder-routes.js';
+import deckRoutes from './modules/deck/routes/deck-routes.js';
+import cardRoutes from './modules/deck/routes/card-routes.js';
+import homeRoutes from './modules/deck/home-routes.js';
 
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-// app.use('/api/decks', deckRoutes);
+app.use('/api/folders', folderRoutes);
+app.use('/api/decks', deckRoutes);
+app.use('/api/cards', cardRoutes);
+app.use('/api/home', homeRoutes);
 
 // Global error handler
 app.use(globalErrorHandler);
