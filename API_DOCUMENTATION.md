@@ -5,7 +5,7 @@ This API provides endpoints for managing folders, decks, and flashcards in the M
 
 ## Base URL
 ```
-http://localhost:3000/api
+http://localhost:5001/api
 ```
 
 ## Authentication
