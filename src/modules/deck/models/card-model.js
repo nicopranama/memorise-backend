@@ -99,13 +99,11 @@ const cardSchema = new mongoose.Schema({
   }
 });
 
-// Indexes
 cardSchema.index({ deckId: 1, isDeleted: 1 });
 cardSchema.index({ userId: 1, isDeleted: 1 });
 cardSchema.index({ userId: 1, status: 1 });
 cardSchema.index({ userId: 1, deckId: 1, status: 1 });
 
-// Pre-save middleware
 cardSchema.pre('save', function(next) {
   if (this.isModified('front')) {
     this.front = this.front.trim();
@@ -119,7 +117,6 @@ cardSchema.pre('save', function(next) {
   next();
 });
 
-// Instance methods
 cardSchema.methods.softDelete = async function() {
   this.isDeleted = true;
   this.deletedAt = new Date();
@@ -159,7 +156,6 @@ cardSchema.methods.removeTag = async function(tag) {
   return await this.save();
 };
 
-// Static methods
 cardSchema.statics.findByDeck = function(deckId, userId) {
   return this.find({ deckId, userId, isDeleted: false }).sort({ createdAt: -1 });
 };

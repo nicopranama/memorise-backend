@@ -11,11 +11,11 @@ const CACHE_PREFIX_HOME = 'home:';
 
 const FILE_METADATA_TTL = 60 * 10;
 const URL_TTL = 60 * 5;
-const DECK_TTL = 60 * 15; // 15 minutes
-const FOLDER_TTL = 60 * 30; // 30 minutes
-const CARD_TTL = 60 * 10; // 10 minutes
-const STATS_TTL = 60 * 5; // 5 minutes
-const HOME_TTL = 60 * 10; // 10 minutes
+const DECK_TTL = 60 * 15; 
+const FOLDER_TTL = 60 * 30; 
+const CARD_TTL = 60 * 10; 
+const STATS_TTL = 60 * 5; 
+const HOME_TTL = 60 * 10; 
 const IDEMPOTENCY_PREFIX = 'idempotency:';
 
 export const cacheFileMetadata = async (fileDoc) => {
@@ -118,8 +118,6 @@ export const releaseIdempotencyLock = async (key) => {
     }
 };
 
-// ===== DECK CACHE FUNCTIONS =====
-
 export const cacheDeck = async (deckId, deckData) => {
     try {
         const client = getRedisClient();
@@ -154,7 +152,6 @@ export const invalidateDeckCache = async (deckId) => {
     }
 };
 
-// ===== FOLDER CACHE FUNCTIONS =====
 
 export const cacheFolder = async (folderId, folderData) => {
     try {
@@ -190,8 +187,6 @@ export const invalidateFolderCache = async (folderId) => {
     }
 };
 
-// ===== CARD CACHE FUNCTIONS =====
-
 export const cacheCardsByDeck = async (deckId, cardsData) => {
     try {
         const client = getRedisClient();
@@ -225,8 +220,6 @@ export const invalidateCardsCache = async (deckId) => {
         logger.error(`Redis invalidateCardsCache failed: ${error.message}`);
     }
 };
-
-// ===== STATS CACHE FUNCTIONS =====
 
 export const cacheStats = async (type, id, statsData) => {
     try {
@@ -262,8 +255,6 @@ export const invalidateStatsCache = async (type, id) => {
     }
 };
 
-// ===== HOME CACHE FUNCTIONS =====
-
 export const cacheHomeData = async (userId, homeData) => {
     try {
         const client = getRedisClient();
@@ -297,8 +288,6 @@ export const invalidateHomeCache = async (userId) => {
         logger.error(`Redis invalidateHomeCache failed: ${error.message}`);
     }
 };
-
-// ===== BULK INVALIDATION =====
 
 export const invalidateUserCache = async (userId) => {
     try {

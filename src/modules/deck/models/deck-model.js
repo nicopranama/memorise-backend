@@ -64,13 +64,11 @@ const deckSchema = new mongoose.Schema({
   }
 });
 
-// Indexes
 deckSchema.index({ userId: 1, isDeleted: 1 });
 deckSchema.index({ folderId: 1, isDeleted: 1 });
 deckSchema.index({ userId: 1, name: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });
 deckSchema.index({ userId: 1, isDraft: 1 });
 
-// Virtual for cards count
 deckSchema.virtual('cardsCount', {
   ref: 'Card',
   localField: '_id',
@@ -78,7 +76,6 @@ deckSchema.virtual('cardsCount', {
   count: true
 });
 
-// Virtual for study progress
 deckSchema.virtual('studyProgress', {
   ref: 'StudySession',
   localField: '_id',
@@ -86,7 +83,6 @@ deckSchema.virtual('studyProgress', {
   count: true
 });
 
-// Pre-save middleware
 deckSchema.pre('save', function(next) {
   if (this.isModified('name')) {
     this.name = this.name.trim();
@@ -97,7 +93,6 @@ deckSchema.pre('save', function(next) {
   next();
 });
 
-// Instance methods
 deckSchema.methods.softDelete = async function() {
   this.isDeleted = true;
   this.deletedAt = new Date();
@@ -120,8 +115,6 @@ deckSchema.methods.moveToUnassigned = async function() {
   return await this.save();
 };
 
-
-// Static methods
 deckSchema.statics.findByUser = function(userId) {
   return this.find({ userId, isDeleted: false }).sort({ createdAt: -1 });
 };
