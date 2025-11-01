@@ -133,19 +133,6 @@ export const removeCardTag = asyncHandler(async (req, res) => {
 });
 
 /**
- * Get card statistics for deck
- * GET /api/cards/deck/:deckId/stats
- */
-export const getCardStats = asyncHandler(async (req, res) => {
-  const { deckId } = req.params;
-  const userId = req.user.id;
-
-  const stats = await CardService.getCardStats(deckId, userId);
-
-  return successResponse(res, 200, { data: stats });
-});
-
-/**
  * Get cards by status in deck
  * GET /api/cards/deck/:deckId/status/:status
  */

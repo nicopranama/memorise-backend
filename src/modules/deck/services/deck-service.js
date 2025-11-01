@@ -17,6 +17,7 @@ import {
   invalidateHomeCache
 } from '../../../shared/utils/cache.js';
 
+
 export const createDeck = async ({ name, description, folderId, userId, isDraft = false }) => {
   const existingDeck = await Deck.findByUserAndName(userId, name);
   if (existingDeck) {
@@ -41,6 +42,12 @@ export const createDeck = async ({ name, description, folderId, userId, isDraft 
   await deck.save();
   logger.info(`Deck created: ${deck.name} for user ${userId}`);
 
+  const invalidationPromises = [invalidateHomeCache(userId)];
+  if (folderId) {
+    invalidationPromises.push(invalidateStatsCache('folder', folderId));
+  }
+  await Promise.all(invalidationPromises);
+
   return deck;
 };
 
@@ -64,10 +71,24 @@ export const getDecksByUser = async (userId, filters = {}) => {
 };
 
 export const getDeckById = async (deckId, userId, include = []) => {
-  const cachedDeck = await getCachedDeck(deckId);
-  if (cachedDeck && !include.length) {
-    return cachedDeck;
+  try {
+    const cachedDeck = await getCachedDeck(deckId);
+    if (cachedDeck) {
+      if (cachedDeck.userId.toString() !== userId) {
+        throw new Error('DECK_NOT_FOUND: Deck not found');
+      }
+      logger.debug(`Cache hit for deck: ${deckId}`);
+      
+      if (!include.length) {
+        return cachedDeck;
+      }
+    }
+  } catch (error) {
+    if (error.message.startsWith('DECK_NOT_FOUND')) throw error;
+    logger.error(`Error getting deck from cache: ${error.message}`);
   }
+
+  logger.debug(`Cache miss for deck: ${deckId}`);
 
   const deck = await Deck.findOne({ 
     _id: deckId, 
@@ -80,7 +101,6 @@ export const getDeckById = async (deckId, userId, include = []) => {
   }
 
   const result = deck.toObject();
-
   if (include.includes('cards')) {
     const cachedCards = await getCachedCardsByDeck(deckId);
     if (cachedCards) {
@@ -88,19 +108,13 @@ export const getDeckById = async (deckId, userId, include = []) => {
     } else {
       const cards = await Card.findByDeck(deckId, userId);
       result.cards = cards;
-      await cacheCardsByDeck(deckId, cards);
+      await cacheCardsByDeck(deckId, cards); 
     }
   }
 
   if (include.includes('stats')) {
-    const cachedStats = await getCachedStats('deck', deckId);
-    if (cachedStats) {
-      result.stats = cachedStats;
-    } else {
-      const stats = await getDeckStats(deckId, userId);
-      result.stats = stats;
-      await cacheStats('deck', deckId, stats);
-    }
+    const stats = await getDeckStats(deckId, userId);
+    result.stats = stats;
   }
 
   if (!include.length) {
@@ -128,25 +142,38 @@ export const updateDeck = async (deckId, userId, updateData) => {
     }
   }
 
-  if (updateData.folderId !== undefined && updateData.folderId !== deck.folderId) {
-    if (updateData.folderId) {
-      const folder = await Folder.findOne({ 
-        _id: updateData.folderId, 
-        userId, 
-        isDeleted: false 
-      });
+  const oldFolderId = deck.folderId;
+  const newFolderId = updateData.folderId;
+  const folderChanged = newFolderId !== undefined && newFolderId?.toString() !== oldFolderId?.toString();
+
+  if (folderChanged && newFolderId) {
+      const folder = await Folder.findOne({ _id: newFolderId, userId, isDeleted: false });
       if (!folder) {
         throw new Error('FOLDER_NOT_FOUND: Folder not found');
       }
-    }
   }
 
   Object.assign(deck, updateData);
   await deck.save();
 
-  await invalidateDeckCache(deckId);
-  await invalidateCardsCache(deckId);
-  await invalidateStatsCache('deck', deckId);
+  const invalidationPromises = [
+    invalidateDeckCache(deckId) 
+  ];
+
+  if (updateData.name || folderChanged) {
+    invalidationPromises.push(invalidateHomeCache(userId));
+  }
+
+  if (folderChanged) {
+    if (oldFolderId) {
+      invalidationPromises.push(invalidateStatsCache('folder', oldFolderId));
+    }
+    if (newFolderId) {
+      invalidationPromises.push(invalidateStatsCache('folder', newFolderId));
+    }
+  }
+  
+  await Promise.all(invalidationPromises);
 
   logger.info(`Deck updated: ${deck.name} for user ${userId}`);
   return deck;
@@ -163,6 +190,11 @@ export const moveDeck = async (deckId, userId, newFolderId) => {
     throw new Error('DECK_NOT_FOUND: Deck not found');
   }
 
+  const oldFolderId = deck.folderId;
+  if (oldFolderId?.toString() === newFolderId?.toString()) {
+    return deck;
+  }
+
   if (newFolderId) {
     const folder = await Folder.findOne({ 
       _id: newFolderId, 
@@ -177,8 +209,20 @@ export const moveDeck = async (deckId, userId, newFolderId) => {
   deck.folderId = newFolderId;
   await deck.save();
 
-  await invalidateDeckCache(deckId);
-  await invalidateHomeCache(userId);
+  const invalidationPromises = [
+    invalidateDeckCache(deckId),
+    invalidateHomeCache(userId)
+  ];
+
+  if (oldFolderId) {
+    invalidationPromises.push(invalidateStatsCache('folder', oldFolderId));
+  }
+
+  if (newFolderId) {
+    invalidationPromises.push(invalidateStatsCache('folder', newFolderId));
+  }
+
+  await Promise.all(invalidationPromises);
 
   logger.info(`Deck moved: ${deck.name} to folder ${newFolderId || 'unassigned'} for user ${userId}`);
   return deck;
@@ -194,6 +238,8 @@ export const deleteDeck = async (deckId, userId) => {
   if (!deck) {
     throw new Error('DECK_NOT_FOUND: Deck not found');
   }
+  
+  const folderId = deck.folderId;
 
   await Card.updateMany(
     { deckId: deckId, userId },
@@ -202,16 +248,36 @@ export const deleteDeck = async (deckId, userId) => {
 
   await deck.softDelete();
 
-  await invalidateDeckCache(deckId);
-  await invalidateCardsCache(deckId);
-  await invalidateStatsCache('deck', deckId);
-  await invalidateHomeCache(userId);
+  const invalidationPromises = [
+    await invalidateDeckCache(deckId),
+    await invalidateCardsCache(deckId),
+    await invalidateStatsCache('deck', deckId),
+    await invalidateHomeCache(userId)
+  ];
+
+  if (folderId) {
+    invalidationPromises.push(invalidateStatsCache('folder', folderId));
+  }
+
+  await Promise.all(invalidationPromises);
 
   logger.info(`Deck deleted: ${deck.name} for user ${userId}`);
   return { message: 'Deck deleted successfully' };
 };
 
 export const getDeckStats = async (deckId, userId) => {
+  try {
+    const cachedStats = await getCachedStats('deck', deckId);
+    if (cachedStats) {
+      logger.debug(`Cache hit for deck stats: ${deckId}`);
+      return cachedStats;
+    }
+  } catch (error) {
+    logger.error(`Error getting deck stats from cache: ${error.message}`)
+  }
+
+  logger.debug(`Cache miss for deck stats: ${deckId}`);
+
   const deck = await Deck.findOne({ 
     _id: deckId, 
     userId, 
@@ -245,18 +311,29 @@ export const getDeckStats = async (deckId, userId) => {
     else if (item._id === 'mastered') progress.mastered = item.count;
   });
 
-  return {
+  const stats = {
     deckId: deck._id,
     totalCards,
     progress
   };
+
+  try {
+    await cacheStats('deck', deckId, stats);
+  } catch (error) {
+    logger.error(`Error caching deck stats: ${error.message}`);
+  }
+
+  return stats;
 };
 
 export const getHomeData = async (userId) => {
   const cachedHomeData = await getCachedHomeData(userId);
   if (cachedHomeData) {
+    logger.debug(`Cache hit for home data: ${userId}`)
     return cachedHomeData;
   }
+
+  logger.debug(`Cache miss for home data: ${userId}`);
 
   const folders = await Folder.findByUser(userId);
   const foldersWithDecks = await Promise.all(

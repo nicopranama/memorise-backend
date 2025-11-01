@@ -1,6 +1,34 @@
 import Card from '../models/card-model.js';
 import Deck from '../models/deck-model.js';
 import { logger } from '../../../shared/utils/logger.js';
+import { 
+  cacheCardsByDeck, 
+  getCachedCardsByDeck, 
+  invalidateCardsCache,
+  invalidateStatsCache
+} from '../../../shared/utils/cache.js';
+
+const invalidateRelatedCaches = async (deckId) => {
+  if (!deckId) return;
+
+  const invalidationPromises = [
+    invalidateCardsCache(deckId),
+    invalidateStatsCache('deck', deckId)
+  ];
+
+  try {
+    const deck = await Deck.findById(deckId).select('folderId').lean();
+    if (deck && deck.folderId) {
+      invalidationPromises.push(invalidateStatsCache('folder', deck.folderId));
+    }
+  } catch (error) {
+    logger.error(`Error invalidating related caches for deck ${deckId}: ${error.message}`);
+  }
+
+  await Promise.all(invalidationPromises);
+  logger.debug(`Invalidated related caches for deck: ${deckId}`);
+};
+
 
 export const createCard = async ({ front, back, deckId, userId, imageFront, imageBack, notes, tags }) => {
   const deck = await Deck.findOne({ _id: deckId, userId, isDeleted: false });
@@ -21,17 +49,35 @@ export const createCard = async ({ front, back, deckId, userId, imageFront, imag
 
   await card.save();
   logger.info(`Card created in deck ${deckId} for user ${userId}`);
+  await invalidateRelatedCaches(deckId);
 
   return card;
 };
 
 export const getCardsByDeck = async (deckId, userId) => {
+  try {
+    const cachedCards = await getCachedCardsByDeck(deckId);
+    if (cachedCards) {
+      logger.debug(`Cache hit for cards in deck: ${deckId}`);
+      return cachedCards;
+    }
+  } catch (error) {
+    logger.error(`Error getting cards from cache for deck ${deckId}: ${error.message}`);
+  }
+  logger.debug(`Cache miss for cards in deck: ${deckId}`);
+  
   const deck = await Deck.findOne({ _id: deckId, userId, isDeleted: false });
   if (!deck) {
     throw new Error('DECK_NOT_FOUND: Deck not found');
   }
-
   const cards = await Card.findByDeck(deckId, userId);
+  
+  try {
+    await cacheCardsByDeck(deckId, cards);
+  } catch (error) {
+    logger.error(`Error caching cards for deck ${deckId}: ${error.message}`);
+  }
+
   return cards;
 };
 
@@ -63,6 +109,8 @@ export const updateCard = async (cardId, userId, updateData) => {
   Object.assign(card, updateData);
   await card.save();
 
+  await invalidateRelatedCaches(card.deckId);
+
   logger.info(`Card updated: ${card._id} for user ${userId}`);
   return card;
 };
@@ -77,9 +125,12 @@ export const deleteCard = async (cardId, userId) => {
   if (!card) {
     throw new Error('CARD_NOT_FOUND: Card not found');
   }
-
+  
+  const deckId = card.deckId;
   await card.softDelete();
   logger.info(`Card deleted: ${card._id} for user ${userId}`);
+  
+  await invalidateRelatedCaches(deckId);
 
   return { message: 'Card deleted successfully' };
 };
@@ -98,6 +149,8 @@ export const updateCardStatus = async (cardId, userId, status) => {
   await card.updateStatus(status);
   logger.info(`Card status updated: ${card._id} to ${status} for user ${userId}`);
 
+  await invalidateRelatedCaches(card.deckId);
+
   return card;
 };
 
@@ -115,6 +168,8 @@ export const updateStudyData = async (cardId, userId, studyData) => {
   await card.updateStudyData(studyData);
   logger.info(`Card study data updated: ${card._id} for user ${userId}`);
 
+  await invalidateRelatedCaches(card.deckId);
+
   return card;
 };
 
@@ -131,6 +186,8 @@ export const addCardTag = async (cardId, userId, tag) => {
 
   await card.addTag(tag);
   logger.info(`Tag added to card: ${card._id} for user ${userId}`);
+  
+  await invalidateCardsCaches(card.deckId);
 
   return card;
 };
@@ -148,42 +205,13 @@ export const removeCardTag = async (cardId, userId, tag) => {
 
   await card.removeTag(tag);
   logger.info(`Tag removed from card: ${card._id} for user ${userId}`);
+  
+  await invalidateCardsCaches(card.deckId);
 
   return card;
 };
 
-export const getCardStats = async (deckId, userId) => {
-  // Verify deck exists and belongs to user
-  const deck = await Deck.findOne({ _id: deckId, userId, isDeleted: false });
-  if (!deck) {
-    throw new Error('DECK_NOT_FOUND: Deck not found');
-  }
-
-  const stats = await Card.getStatsByDeck(deckId, userId);
-  
-  const progress = {
-    notStudied: 0,
-    learning: 0,
-    mastered: 0
-  };
-
-  stats.forEach(stat => {
-    if (stat._id === 'not_studied') progress.notStudied = stat.count;
-    else if (stat._id === 'learning') progress.learning = stat.count;
-    else if (stat._id === 'mastered') progress.mastered = stat.count;
-  });
-
-  const totalCards = progress.notStudied + progress.learning + progress.mastered;
-
-  return {
-    deckId,
-    totalCards,
-    progress
-  };
-};
-
 export const getCardsByStatus = async (deckId, userId, status) => {
-  // Verify deck exists and belongs to user
   const deck = await Deck.findOne({ _id: deckId, userId, isDeleted: false });
   if (!deck) {
     throw new Error('DECK_NOT_FOUND: Deck not found');
@@ -193,7 +221,40 @@ export const getCardsByStatus = async (deckId, userId, status) => {
   return cards;
 };
 
+const invalidateBulkCaches = async (cardIds, userId) => {
+  const cards = await Card.find({
+    _id: { $in: cardIds },
+    userId,
+    isDeleted: false
+  }).select('deckId').lean();
+
+  const deckIds = [...new Set(cards.map(c => c.deckId.toString()))];
+  if (deckIds.length === 0) return;
+
+  const decks = await Deck.find({
+    _id: { $in: deckIds },
+  }).select('folderId').lean();
+
+  const folderIds = [...new Set(decks.map(d => d.folderId?.toString()).filter(Boolean))];
+
+  const invalidationPromises = [];
+
+  deckIds.forEach(deckId => {
+    invalidationPromises.push(invalidateCardsCache(deckId));
+    invalidationPromises.push(invalidateStatsCache('deck', deckId));
+  });
+
+  folderIds.forEach(folderId => {
+    invalidationPromises.push(invalidateStatsCache('folder', folderId));
+  });
+
+  await Promise.all(invalidationPromises);
+  logger.debug(`Bulk cache invalidation complete for decks: ${deckIds.join(', ')} and folders: ${folderIds.join(', ')}`);
+};
+
 export const bulkUpdateCards = async (cardIds, userId, updateData) => {
+  await invalidateBulkCaches(cardIds, userId);
+
   const result = await Card.updateMany(
     { _id: { $in: cardIds }, userId, isDeleted: false },
     updateData
@@ -204,6 +265,7 @@ export const bulkUpdateCards = async (cardIds, userId, updateData) => {
 };
 
 export const bulkDeleteCards = async (cardIds, userId) => {
+  await invalidateBulkCaches(cardIds, userId);
   const result = await Card.updateMany(
     { _id: { $in: cardIds }, userId, isDeleted: false },
     { isDeleted: true, deletedAt: new Date() }

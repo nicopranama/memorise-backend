@@ -11,7 +11,6 @@ import {
   updateStudyData,
   addCardTag,
   removeCardTag,
-  getCardStats,
   getCardsByStatus,
   bulkUpdateCards,
   bulkDeleteCards
@@ -101,13 +100,6 @@ router.delete(
   validateRequest(cardParamsSchema, 'params'),
   validateRequest(tagParamsSchema, 'params'),
   removeCardTag
-);
-
-// GET /api/cards/deck/:deckId/stats - Get card statistics for deck
-router.get(
-  '/deck/:deckId/stats',
-  validateRequest(deckParamsSchema, 'params'),
-  getCardStats
 );
 
 // GET /api/cards/deck/:deckId/status/:status - Get cards by status in deck
