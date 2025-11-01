@@ -249,10 +249,10 @@ export const deleteDeck = async (deckId, userId) => {
   await deck.softDelete();
 
   const invalidationPromises = [
-    await invalidateDeckCache(deckId),
-    await invalidateCardsCache(deckId),
-    await invalidateStatsCache('deck', deckId),
-    await invalidateHomeCache(userId)
+    invalidateDeckCache(deckId),
+    invalidateCardsCache(deckId),
+    invalidateStatsCache('deck', deckId),
+    invalidateHomeCache(userId)
   ];
 
   if (folderId) {
