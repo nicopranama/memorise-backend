@@ -56,12 +56,17 @@ const generateStorageKey = (userId, originalname) => {
 };
 
 export const uploadFile = async (file, userId, ref = {}, idempotencyKey = null) => {
+    const session = await File.startSession();
+    session.startTransaction();
+
     try {
         if (idempotencyKey) {
             const lockAcquired = await acquireIdempotencyLock(`upload:${idempotencyKey}`);
             if (!lockAcquired) {
                 logger.warn(`[Storage] Upload skipped, idempotency lock exists: ${idempotencyKey}`);
                 const existingFile = await File.findOne({ idempotencyKey });
+                await session.abortTransaction();
+                session.endSession();
                 return existingFile || { message: 'Duplicate upload request detected'};
             }
         }
@@ -73,7 +78,8 @@ export const uploadFile = async (file, userId, ref = {}, idempotencyKey = null) 
         } else if (provider === 's3') {
             await client.upload({ Bucket: bucket, Key: storageKey, Body: file.buffer, ContentType: file.mimetype }).promise();
         }
-        const newFile = await File.create({
+
+        const newFiles = await File.create([{
             originalname: file.originalname,
             storageKey,
             bucket,
@@ -85,16 +91,22 @@ export const uploadFile = async (file, userId, ref = {}, idempotencyKey = null) 
             refId: ref.id,
             idempotencyKey,
             status: 'uploaded'
-        });
+        }], { session: session });
+        const newFile = newFiles[0];
+        await session.commitTransaction();
         await cacheFileMetadata(newFile);
         logger.info(`[Storage] File uploaded successfully: ${storageKey}`);
         return newFile;
     } catch (error) {
+        await session.abortTransaction();
         if (idempotencyKey) {
             await releaseIdempotencyLock(`upload:${idempotencyKey}`);
         }
+
         logger.error(`[Storage] File upload failed: ${error.message}`);
         throw error;
+    } finally {
+        session.endSession();
     }
 };
 
@@ -144,10 +156,15 @@ export const getPresignedUrl = async (fileId, expiry = 3600) => {
 };
 
 export const deleteFile = async (fileId) => {
+    const session = await File.startSession();
+    session.startTransaction();
+
     try {
-        const fileDoc = await File.findById(fileId);
+        const fileDoc = await File.findById(fileId).session(session);
         if (!fileDoc || fileDoc.status === 'deleted') {
             logger.warn(`[Storage] File not found or already deleted: ${fileId}`);
+            await session.abortTransaction();
+            session.endSession();
             return { success: false, message: 'File not found or already deleted'};
         }
 
@@ -158,46 +175,67 @@ export const deleteFile = async (fileId) => {
             await client.deleteObject({ Bucket: fileDoc.bucket, Key: fileDoc.storageKey }).promise();
         }
 
-        await fileDoc.remove();
+        await fileDoc.remove({ session: session });
+        await session.commitTransaction();
         await invalidateFileCache(fileId);
         logger.info(`[Storage] File deleted and cache invalidated: ${fileDoc.storageKey}`);
         return { success: true };
 
     } catch (error) {
+        await session.abortTransaction();
         logger.error(`[Storage] Failed to delete file: ${error.message}`);
         throw error;
+    } finally {
+        session.endSession();
     }
 };
 
 export const deleteMultipleFiles = async (fileIds) => {
+    const session = await File.startSession();
+    session.startTransaction();
+
     try {
-        const files = await File.find({ _id: { $in: fileIds }, status: { $ne: 'deleted' }});
+        const files = await File.find({ 
+            _id: { $in: fileIds }, 
+            status: { $ne: 'deleted' }
+        }).session(session);
+
         if (files.length === 0) {
+            await session.abortTransaction();
+            session.endSession();
             return { success: true, deletedCount: 0 };
         }
 
         const keysToDelete = files.map((file) => file.storageKey);
         const client = getStorageClient();
+
         if (provider === 'minio') {
             await client.removeObjects(bucket, keysToDelete)
         } else if (provider === 's3') {
             await client.deleteObjects({
                 Bucket: bucket,
                 Delete: { Objects: keysToDelete.map((Key) => ({ Key })) },
-            })
-            .promise();
+            }).promise();
         }
 
-        await Promise.all([
-            File.updateMany({ _id: { $in: fileIds } }, { $set: { status: 'deleted', deletedAt: new Date() }} ),
-            invalidateMultipleFiles(fileIds),
-        ]);
+        await File.updateMany(
+            { _id: { $in: fileIds } }, 
+            { $set: { status: 'deleted', deletedAt: new Date() }},
+            { session: session }
+        );
+
+        await session.commitTransaction();
+        await invalidateMultipleFiles(fileIds);
+
         logger.info(`[Storage] Bulk deleted ${files.length} files`);
         return { success: true, deletedCount: files.length };
 
     } catch (error) {
+        await session.abortTransaction();
         logger.error(`[Storage] Failed to bulk delete files: ${error.message}`);
         throw error;
+    } finally {
+        session.endSession();
     }
 };
 
