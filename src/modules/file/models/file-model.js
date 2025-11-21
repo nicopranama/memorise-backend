@@ -57,6 +57,11 @@ const fileSchema = new mongoose.Schema({
         default: 'uploaded',
         index: true,
     },
+    isPublic: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
     meta: {
         type: mongoose.Schema.Types.Mixed
     },
@@ -69,24 +74,24 @@ const fileSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    deletedAt: {
-        type: Date
-    },
+    // deletedAt: {
+    //     type: Date
+    // },
 }, { timestamps: true });
 
 fileSchema.index({ refModel: 1, refId: 1 });
 fileSchema.index({ ownerId: 1, status: 1 });
 fileSchema.index({ provider: 1, bucket: 1, storageKey: 1 }, { unique: true });
 
-fileSchema.pre('remove', function(next) {
-    this.deletedAt = new Date();
-    this.status = 'deleted';
-    next();
-});
+// fileSchema.pre('remove', function(next) {
+//     this.deletedAt = new Date();
+//     this.status = 'deleted';
+//     next();
+// });
 
-fileSchema.virtual('isDeleted').get(function () {
-  return !!this.deletedAt;
-});
+// fileSchema.virtual('isDeleted').get(function () {
+//   return !!this.deletedAt;
+// });
 
 fileSchema.virtual('storagePath').get(function () {
   return `${this.bucket}/${this.storageKey}`;

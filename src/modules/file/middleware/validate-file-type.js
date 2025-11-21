@@ -32,10 +32,14 @@ export const validateFileType = async (req, res, next) => {
             mimetype: req.file.mimetype,
             detectedExt: fileType?.ext 
         });
-        return next(new Error(message));
+        const err = new Error(message);
+        err.statusCode = 400;
+        return next(err);
     } catch (error) {
         const message = 'FILE_CHECK_ERROR: Error checking file content';
         logger.error(message, { error: error.message });
-        return next(new Error(message));
+        const err = new Error(message);
+        err.statusCode = 500;
+        return next(err);
     }
 };

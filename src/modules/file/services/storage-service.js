@@ -110,34 +110,43 @@ export const uploadFile = async (file, userId, ref = {}, idempotencyKey = null) 
     }
 };
 
-export const getFileById = async (fileId) => {
+export const getFileById = async (fileId, userId) => {
     try {
         const cached = await getCachedFileMetadata(fileId);
         if (cached) {
+            if (userId && cached.ownerId.toString() != userId.toString()) {
+                throw new Error('FILE_NOT_FOUND: File not found or access denied');
+            }
             logger.debug(`[Storage] Cache hit for file metadata: ${fileId}`);
             return File.hydrate(cached);
         }
+
         const fileDoc = await File.findById(fileId);
-        if (fileDoc) {
-            await cacheFileMetadata(fileDoc.toObject());
-        } else {
-            logger.warn(`[Storage] File metadata not found in database: ${fileId}`);
+
+        if (!fileDoc || (userId && fileDoc.ownerId.toString() !== userId.toString())) {
+            logger.warn(`[Storage] Unauthorized access attempt: ${fileId} by ${userId}`);
+            throw new Error('FILE_NOT_FOUND: File not found'); 
         }
+
+        await cacheFileMetadata(fileDoc.toObject());
         return fileDoc;
     } catch (error) {
+        if (error.message.includes('FILE_NOT_FOUND')) throw error;
         logger.error(`[Storage] Failed to get file by ID: ${error.message}`);
         throw error;
     }
 };
 
-export const getPresignedUrl = async (fileId, expiry = 3600) => {
+export const getPresignedUrl = async (fileId, userId, expiry = 3600) => {
     try {
         const cachedUrl = await getCachedPresignedUrl(fileId);
         if (cachedUrl) {
+            await getFileById(fileId, userId);
             logger.debug(`[Storage] Cache hit for presigned URL: ${fileId}`);
             return cachedUrl;
         }
-        const fileDoc = await getFileById(fileId);
+
+        const fileDoc = await getFileById(fileId, userId);
 
         if (!fileDoc) {
             throw new Error('File not found');
@@ -155,17 +164,21 @@ export const getPresignedUrl = async (fileId, expiry = 3600) => {
     }
 };
 
-export const deleteFile = async (fileId) => {
+export const deleteFile = async (fileId, userId) => {
     const session = await File.startSession();
     session.startTransaction();
 
     try {
-        const fileDoc = await File.findById(fileId).session(session);
-        if (!fileDoc || fileDoc.status === 'deleted') {
+        const fileDoc = await File.findOne({
+            _id: fileId,
+            ownerId: userId
+        }).session(session);
+
+        if (!fileDoc) {
             logger.warn(`[Storage] File not found or already deleted: ${fileId}`);
             await session.abortTransaction();
             session.endSession();
-            return { success: false, message: 'File not found or already deleted'};
+            throw new Error('FILE_NOT_FOUND: File not found or already deleted');
         }
 
         const client = getStorageClient();
@@ -175,7 +188,7 @@ export const deleteFile = async (fileId) => {
             await client.deleteObject({ Bucket: fileDoc.bucket, Key: fileDoc.storageKey }).promise();
         }
 
-        await fileDoc.remove({ session: session });
+        await fileDoc.deleteOne({ session: session });
         await session.commitTransaction();
         await invalidateFileCache(fileId);
         logger.info(`[Storage] File deleted and cache invalidated: ${fileDoc.storageKey}`);
@@ -197,7 +210,6 @@ export const deleteMultipleFiles = async (fileIds) => {
     try {
         const files = await File.find({ 
             _id: { $in: fileIds }, 
-            status: { $ne: 'deleted' }
         }).session(session);
 
         if (files.length === 0) {
@@ -218,9 +230,8 @@ export const deleteMultipleFiles = async (fileIds) => {
             }).promise();
         }
 
-        await File.updateMany(
+        await File.deleteMany(
             { _id: { $in: fileIds } }, 
-            { $set: { status: 'deleted', deletedAt: new Date() }},
             { session: session }
         );
 
@@ -241,15 +252,65 @@ export const deleteMultipleFiles = async (fileIds) => {
 
 export const listFiles = async (filters = {}, options = { limit: 10, page: 1 }) => {
     try {
-        const query = { ...filters, status: { $ne: 'deleted' } };
-        const files = await File.find(query).sort({ createdAt: -1 }).skip((options.page - 1) * options.limit).limit(options.limit).lean();
-        logger.debug(`[Storage] Retrieved ${files.length} files`);
-        return files;
+        const page = Math.max(1, options.page);
+        const limit = Math.max(1, Math.min(100, options.limit));
+        const skip = (page - 1) * limit;
+
+        const query = { ...filters };
+        const [files, total] = await Promise.all([
+            File.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            File.countDocuments(query)
+        ]) ;
+
+        const totalPages = Math.ceil(total / limit);
+        logger.debug(`[Storage] Retrieved ${files.length} files (Page ${page} of ${totalPages})`);
+
+        return {
+            data: files,
+            pagination: {
+                total,
+                totalPages,
+                currentPage: page,
+                limit,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            }
+        };
+
     } catch (error) {
         logger.error(`[Storage] Failed to list files: ${error.message}`);
         throw error;
     }
 };
+
+export const updateFileMetadata = async (fileId, userId, updates) => {
+    const allowedUpdates = ['isPublic', 'metadata', 'refModel', 'refId'];
+    const updatesToApply = {};
+  
+    Object.keys(updates).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        updatesToApply[key] = updates[key];
+      }
+    });
+  
+    const file = await File.findOneAndUpdate(
+      { _id: fileId, ownerId: userId },
+      { $set: updatesToApply },
+      { new: true, runValidators: true }
+    );
+  
+    if (!file) {
+      throw new Error('FILE_NOT_FOUND: File not found or access denied');
+    }
+
+    await cacheFileMetadata(file);
+  
+    logger.info(`File metadata updated: ${fileId}`);
+    return file;
+  };
 
 export const checkStorageHealth = async () => {
     try {

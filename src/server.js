@@ -3,6 +3,7 @@ import { connectDatabase, closeDatabaseConnection } from './database/connection.
 import { createEmailTransporter, verifyEmailConnection, closeEmailConnection } from './modules/auth/services/email-service.js';
 import { getRedisClient, createRedisClient } from './shared/services/redis-service.js';
 import { logger } from './shared/utils/logger.js';
+import { initializeStorage } from './modules/file/services/storage-service.js';
 import app from './app.js';
 
 // Load environment variables
@@ -71,10 +72,16 @@ const startServer = async () => {
   try {
     logger.info('Starting Memorise Backend Server...');
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-
-    // Connect to MongoDB
     await connectDatabase();
     logger.info('Database connected successfully');
+
+    try {
+      await initializeStorage();
+      logger.info('Storage service initialized successfully');
+    } catch (err) {
+      logger.error('Storage initialization failed:', err.message);
+      throw err;
+    }
 
     // Initialize email service
     createEmailTransporter();
