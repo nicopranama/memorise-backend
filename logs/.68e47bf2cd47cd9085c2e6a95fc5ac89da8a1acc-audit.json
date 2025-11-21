@@ -6,34 +6,9 @@
     "auditLog": "C:\\memorise-backend\\logs\\.68e47bf2cd47cd9085c2e6a95fc5ac89da8a1acc-audit.json",
     "files": [
         {
-            "date": 1761026444070,
-            "name": "C:\\memorise-backend\\logs\\2025-10-21-rejections.log",
-            "hash": "057a40a479b909fc4cb163ee6870b2bf2de8d9746f92332c067637d468a155ec"
-        },
-        {
-            "date": 1761067845788,
-            "name": "C:\\memorise-backend\\logs\\2025-10-22-rejections.log",
-            "hash": "155ba12921c32e28b383c291753a1f8034ffddf58ca90baf386f367cb8bddcfb"
-        },
-        {
-            "date": 1761219439794,
-            "name": "C:\\memorise-backend\\logs\\2025-10-23-rejections.log",
-            "hash": "b6e5076b3faa5da24afecf66600002e4afaf0bf0b906344880c15a8fab5be2b3"
-        },
-        {
-            "date": 1761266095661,
-            "name": "C:\\memorise-backend\\logs\\2025-10-24-rejections.log",
-            "hash": "e27d23d18c9516e74c8e28a8d1c7a382f0c21f2f0b5ef3661c679f7598bf0ee5"
-        },
-        {
-            "date": 1761325833112,
-            "name": "C:\\memorise-backend\\logs\\2025-10-25-rejections.log",
-            "hash": "07df539e9889d414c1b44c8d699220776e53a7899a9f08042ef2624c75e9dd1f"
-        },
-        {
-            "date": 1761476831164,
-            "name": "C:\\memorise-backend\\logs\\2025-10-26-rejections.log",
-            "hash": "ba26e87338be9a5b98a2a28523b1468dd4c9ed0ef437f605f2d9878f79e46bbd"
+            "date": 1763754029172,
+            "name": "C:\\memorise-backend\\logs\\2025-11-22-rejections.log",
+            "hash": "91869e28308fe90a227280627e5739e4d072a840a7dde62044ed7b8f468f461b"
         }
     ],
     "hashType": "sha256"
