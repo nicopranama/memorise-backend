@@ -312,6 +312,39 @@ export const updateFileMetadata = async (fileId, userId, updates) => {
     return file;
   };
 
+export const getFileBuffer = async (fileId, userId) => {
+    try {
+        const fileDoc = await getFileById(fileId, userId);
+        if (!fileDoc) {
+            throw new Error('File not found');
+        }
+
+        const client = getStorageClient();
+        let buffer;
+
+        if (provider === 'minio') {
+            const chunks = [];
+            const stream = await client.getObject(fileDoc.bucket, fileDoc.storageKey);
+            for await (const chunk of stream) {
+                chunks.push(chunk);
+            }
+            buffer = Buffer.concat(chunks);
+        } else if (provider === 's3') {
+            const data = await client.getObject({
+                Bucket: fileDoc.bucket,
+                Key: fileDoc.storageKey
+            }).promise();
+            buffer = data.Body;
+        }
+
+        logger.debug(`[Storage] File buffer retrieved: ${fileId}`);
+        return { buffer, mimeType: fileDoc.contentType };
+    } catch (error) {
+        logger.error(`[Storage] Failed to get file buffer: ${error.message}`);
+        throw error;
+    }
+};
+
 export const checkStorageHealth = async () => {
     try {
         const client = getStorageClient();

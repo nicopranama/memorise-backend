@@ -33,6 +33,60 @@ export class GroqProvider extends BaseAIProvider {
         };
     }
     
+    async generateWithVision(prompt, imageBuffer, mimeType, options = {}) {
+        const visionModel = 'llama-3.2-11b-vision-preview';
+        this.logGeneration(prompt, {
+            ...options,
+            model: visionModel,
+            hasImage: true
+        });
+
+        const url = this.buildApiUrl('chat/completions');
+        const headers = this.getRequestHeaders();
+
+        const body = {
+            model: visionModel,
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: prompt },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: `data:${mimeType};base64,${imageBuffer.toString('base64')}`
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature: options.temperature,
+            max_tokens: options.maxTokens || 1024,
+            top_p: options.topP
+        };
+
+        try {
+            await this.checkRateLimit();
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw this.handleError(data, response.status);
+            }
+
+            return this.parseResponse(data);
+        } catch (error) {
+            this.logger.error(`[GroqProvider] Vision generation failed: ${err.message}`);
+            throw error;
+        }
+    }
+    
     parseResponse(data) {
         const text = data?.choices?.[0]?.message?.content || '';
         if (!text) {

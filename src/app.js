@@ -82,6 +82,7 @@ import deckRoutes from './modules/deck/routes/deck-routes.js';
 import cardRoutes from './modules/deck/routes/card-routes.js';
 import homeRoutes from './modules/deck/routes/home-routes.js';
 import fileRoutes from './modules/file/routes/file-routes.js';
+import aiRoutes from './modules/ai/routes/ai-routes.js';
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -91,6 +92,7 @@ app.use('/api/decks', deckRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Global error handler
 app.use(globalErrorHandler);

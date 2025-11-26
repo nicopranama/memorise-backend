@@ -187,7 +187,7 @@ export const addCardTag = async (cardId, userId, tag) => {
   await card.addTag(tag);
   logger.info(`Tag added to card: ${card._id} for user ${userId}`);
   
-  await invalidateCardsCaches(card.deckId);
+  await invalidateCardsCache(card.deckId);
 
   return card;
 };
@@ -206,7 +206,7 @@ export const removeCardTag = async (cardId, userId, tag) => {
   await card.removeTag(tag);
   logger.info(`Tag removed from card: ${card._id} for user ${userId}`);
   
-  await invalidateCardsCaches(card.deckId);
+  await invalidateCardsCache(card.deckId);
 
   return card;
 };

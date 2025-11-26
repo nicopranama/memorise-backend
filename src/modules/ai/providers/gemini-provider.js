@@ -40,6 +40,72 @@ export class GeminiProvider extends BaseAIProvider {
         };
     }
 
+    buildVisionRequestBody(prompt, imageData, mimeType, options) {
+        const parts = [{ text: prompt }];
+        
+        // Add image part
+        if (imageData) {
+            parts.push({
+                inlineData: {
+                    data: imageData,
+                    mimeType: mimeType || 'image/jpeg'
+                }
+            });
+        }
+
+        return {
+            contents: [
+                {
+                    role: 'user',
+                    parts: parts,
+                },
+            ],
+            generationConfig: {
+                temperature: options.temperature,
+                topP: options.topP,
+                topK: options.topK,
+                maxOutputTokens: options.maxTokens,
+            },
+            safetySettings: this.config.safetySettings || [],
+        };
+    }
+
+    async generateWithVision(prompt, imageBuffer, mimeType, options = {}) {
+        this.logGeneration(prompt, { ...options, hasImage: true });
+        const merged = this.mergeOptions(options);
+        const url = this.buildApiUrl('generateContent');
+        const headers = this.getRequestHeaders();
+        
+        // Convert buffer to base64
+        const base64Image = imageBuffer.toString('base64');
+        const body = this.buildVisionRequestBody(prompt, base64Image, mimeType, merged);
+
+        try {
+            await this.checkRateLimit();
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), merged.timeout);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw this.handleError(data, response.status);
+            }
+
+            const result = this.parseResponse(data);
+            return { ...result, provider: this.providerName };
+        } catch (err) {
+            this.logger.error(`[${this.providerName}] Vision generation failed: ${err.message}`);
+            throw err;
+        }
+    }
+
     parseResponse(data) {
         if (!data?.candidates?.length) {
             throw new Error('[GeminiProvider] No candidates returned from API');

@@ -75,7 +75,9 @@ export const PROVIDER_CONFIGS = {
     model: process.env.GROQ_MODEL || 'llama-3.1-70b-versatile',
     availableModels: [
       'llama-3.1-8b-instant',    
-      'llama-3.1-70b-versatile',  
+      'llama-3.1-70b-versatile', 
+      'llama-3.2-11b-vision-preview',
+      'llama-3.2-90b-vision-preview', 
       'llama-3.3-70b-versatile',  
       'mixtral-8x7b-32768',     
       'gemma2-9b-it',          

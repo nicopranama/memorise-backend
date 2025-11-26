@@ -8,22 +8,26 @@ class AIService {
         this.providers = {};
 
         try {
-            this.providers.gemini = new GeminiProvider(
-                aiConfig.primary.provider === 'gemini'
-                    ? aiConfig.primary
-                    : aiConfig.fallback || aiConfig.primary
-            );
+            if (aiConfig.primary) {
+                this.providers.gemini = new GeminiProvider(
+                    aiConfig.primary.provider === 'gemini'
+                        ? aiConfig.primary
+                        : aiConfig.fallback || aiConfig.primary
+                );
+            }
             logger.debug('Gemini provider initialized');
         } catch (error) {
             logger.warn(`Gemini provider not initialized: ${error.message}`);
         }
 
         try {
-            this.providers.groq = new GroqProvider(
-                aiConfig.primary.provider === 'groq'
-                    ? aiConfig.primary
-                    : aiConfig.fallback || aiConfig.primary
-            );
+            if (aiConfig.primary) {
+                this.providers.groq = new GroqProvider(
+                    aiConfig.primary.provider === 'groq'
+                        ? aiConfig.primary
+                        : aiConfig.fallback || aiConfig.primary
+                );
+            }
             logger.debug('Groq provider initialized');
         } catch (error) {
             logger.warn(`Groq provider not initialized: ${error.message}`);
@@ -162,6 +166,57 @@ class AIService {
 
         logger.debug(`Should fallback: ${isEligible}`, { message: msg, code });
         return isEligible;
+    }
+
+    async generateWithVision(prompt, imageBuffer, mimeType, options = {}) {
+        const primaryProviderName = aiConfig.primary.provider;
+        const fallbackProviderName = aiConfig.fallback?.provider;
+        const fallbackEnabled = aiConfig.fallbackEnabled;
+
+        try {
+            logger.debug(`Generating vision with primary provider: ${primaryProviderName}`);
+            return await this._executeVision(primaryProviderName, prompt, imageBuffer, mimeType, options);
+        } catch (primaryError) {
+            logger.error(`Primary provider (${primaryProviderName}) vision failed: ${primaryError.message}`);
+
+            if (!fallbackEnabled || !fallbackProviderName) {
+                throw primaryError;
+            }
+
+            try {
+                logger.warn(`Attempting vision fallback to: ${fallbackProviderName}`);
+                const result = await this._executeVision(fallbackProviderName, prompt, imageBuffer, mimeType, options);
+                return {
+                    ...result,
+                    fallbackUsed: true
+                };
+            } catch (fallbackError) {
+                logger.error(`Fallback provider (${fallbackProviderName}) also failed: ${fallbackError.message}`);
+                throw new Error(
+                    `Vision generation failed on both providers.\n` +
+                    `Primary (${primaryProviderName}): ${primaryError.message}\n` +
+                    `Fallback (${fallbackProviderName}): ${fallbackError.message}`
+                );
+            }
+        }
+    }
+
+    async _executeVision(providerName, prompt, imageBuffer, mimeType, options) {
+        const provider = this.providers[providerName];
+
+        if (!provider) {
+            throw new Error(`Provider ${providerName} not initialized`);
+        }
+
+        if (typeof provider.generateWithVision !== 'function') {
+            throw new Error(`Provider ${providerName} does not support Vision capabilities`);
+        }
+
+        const result = await provider.generateWithVision(prompt, imageBuffer, mimeType, options);
+        return {
+            ...result,
+            provider: providerName
+        };
     }
 
     getStats() {
