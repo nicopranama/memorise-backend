@@ -95,7 +95,7 @@ export const AI_PARAMS = {
   temperature: Number(process.env.AI_TEMPERATURE) || 0.7,
   topP: Number(process.env.AI_TOP_P) || 0.95,
   topK: Number(process.env.AI_TOP_K) || 40,
-  timeout: Number(process.env.AI_TIMEOUT) || 20000,
+  timeout: Number(process.env.AI_TIMEOUT) || 60000,
 };
 
 export const aiConfig = {

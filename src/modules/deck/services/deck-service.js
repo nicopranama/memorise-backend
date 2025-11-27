@@ -66,7 +66,7 @@ export const getDecksByUser = async (userId, filters = {}) => {
     query.isDraft = filters.isDraft === 'true';
   }
 
-  const decks = await Deck.find(query).sort({ createdAt: -1 });
+  const decks = await Deck.find(query).sort({ createdAt: -1 }).populate('cardsCount');
   return decks;
 };
 
@@ -338,7 +338,7 @@ export const getHomeData = async (userId) => {
   const folders = await Folder.findByUser(userId);
   const foldersWithDecks = await Promise.all(
     folders.map(async (folder) => {
-      const decks = await Deck.findByUserAndFolder(userId, folder._id);
+      const decks = await Deck.findByUserAndFolder(userId, folder._id).populate('cardsCount');
       return {
         id: folder._id,
         name: folder.name,
@@ -348,7 +348,7 @@ export const getHomeData = async (userId) => {
           id: deck._id,
           name: deck.name,
           description: deck.description,
-          cardsCount: 0, 
+          cardsCount: deck.cardsCount || 0, 
           createdAt: deck.createdAt,
           updatedAt: deck.updatedAt
         }))
@@ -356,12 +356,13 @@ export const getHomeData = async (userId) => {
     })
   );
 
-  const unassignedDecks = await Deck.findUnassignedByUser(userId);
+  const unassignedDecks = await Deck.findUnassignedByUser(userId).populate('cardsCount');
+
   const unassignedDecksFormatted = unassignedDecks.map(deck => ({
     id: deck._id,
     name: deck.name,
     description: deck.description,
-    cardsCount: 0, 
+    cardsCount: deck.cardsCount || 0, 
     createdAt: deck.createdAt,
     updatedAt: deck.updatedAt
   }));

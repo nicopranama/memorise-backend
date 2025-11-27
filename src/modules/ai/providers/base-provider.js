@@ -30,7 +30,7 @@ export class BaseAIProvider {
         try {
             await this.checkRateLimit();
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), merged.timeout);
+            const timeoutId = setTimeout(() => controller.abort(), merged.timeout || 60000);
             const response = await fetch(url, {
                 method: 'POST',
                 headers,
@@ -39,7 +39,16 @@ export class BaseAIProvider {
             });
 
             clearTimeout(timeoutId);
-            const data = await response.json();
+
+            const rawText = await response.text();
+            let data;
+
+            try {
+                data = JSON.parse(rawText);
+            } catch (e) {
+                this.logger.error(`[${this.providerName}] Invalid JSON Response: ${rawText.substring(0, 200)}`);
+                throw new Error(`${this.providerName} API Error: Received non-JSON response (Status: ${response.status})`);
+            }
 
             if (!response.ok) {
                 throw new Error(`${this.providerName} API Error: ${data?.error?.message || data?.message || 'Unknown error'}`);
@@ -47,6 +56,7 @@ export class BaseAIProvider {
 
             const result = this.parseResponse(data);
             return { ...result, provider: this.providerName };
+
         } catch (err) {
             this.logger.error(`[${this.providerName}] Generation failed: ${err.message}`);
 

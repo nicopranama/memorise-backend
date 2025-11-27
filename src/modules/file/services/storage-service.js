@@ -310,35 +310,39 @@ export const updateFileMetadata = async (fileId, userId, updates) => {
   
     logger.info(`File metadata updated: ${fileId}`);
     return file;
-  };
+};
+
+const streamToBuffer = (stream) => {
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+      stream.on('data', (chunk) => chunks.push(chunk));
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('error', (err) => reject(err));
+    });
+};
 
 export const getFileBuffer = async (fileId, userId) => {
     try {
-        const fileDoc = await getFileById(fileId, userId);
+        const fileDoc = await File.findById(fileId);
+
         if (!fileDoc) {
-            throw new Error('File not found');
+            throw new Error('FILE_NOT_FOUND: File metadata not found');
         }
 
         const client = getStorageClient();
         let buffer;
 
         if (provider === 'minio') {
-            const chunks = [];
-            const stream = await client.getObject(fileDoc.bucket, fileDoc.storageKey);
-            for await (const chunk of stream) {
-                chunks.push(chunk);
-            }
-            buffer = Buffer.concat(chunks);
+            const dataStream = await client.getObject(fileDoc.bucket, fileDoc.storageKey);
+            return await streamToBuffer(dataStream);
         } else if (provider === 's3') {
-            const data = await client.getObject({
+            const response = await client.getObject({
                 Bucket: fileDoc.bucket,
                 Key: fileDoc.storageKey
             }).promise();
-            buffer = data.Body;
+            return response.Body;
         }
 
-        logger.debug(`[Storage] File buffer retrieved: ${fileId}`);
-        return { buffer, mimeType: fileDoc.contentType };
     } catch (error) {
         logger.error(`[Storage] Failed to get file buffer: ${error.message}`);
         throw error;

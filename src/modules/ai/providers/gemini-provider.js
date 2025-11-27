@@ -9,7 +9,11 @@ export class GeminiProvider extends BaseAIProvider {
     }
 
     buildApiUrl(endpoint) {
-        return `${this.config.baseUrl}/models/${this.config.model}:${endpoint}?key=${this.apiKey}`;
+        let finalEndpoint = endpoint;
+        if (endpoint === 'generate') {
+            finalEndpoint = 'generateContent';
+        }
+        return `${this.config.baseUrl}/models/${this.config.model}:${finalEndpoint}?key=${this.apiKey}`;
     }
 
     getRequestHeaders() {
@@ -43,7 +47,6 @@ export class GeminiProvider extends BaseAIProvider {
     buildVisionRequestBody(prompt, imageData, mimeType, options) {
         const parts = [{ text: prompt }];
         
-        // Add image part
         if (imageData) {
             parts.push({
                 inlineData: {
@@ -76,7 +79,6 @@ export class GeminiProvider extends BaseAIProvider {
         const url = this.buildApiUrl('generateContent');
         const headers = this.getRequestHeaders();
         
-        // Convert buffer to base64
         const base64Image = imageBuffer.toString('base64');
         const body = this.buildVisionRequestBody(prompt, base64Image, mimeType, merged);
 

@@ -9,7 +9,11 @@ export class GroqProvider extends BaseAIProvider {
     }
 
     buildApiUrl(endpoint) {
-        return `${this.config.baseUrl}/${endpoint}`;
+        let finalEndpoint = endpoint;
+        if (endpoint === 'generate') {
+            finalEndpoint = 'chat/completions';
+        }
+        return `${this.config.baseUrl}/${finalEndpoint}`;
     }
 
     getRequestHeaders() {

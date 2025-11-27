@@ -3,6 +3,17 @@ import { GeminiProvider } from '../providers/gemini-provider.js';
 import { GroqProvider } from '../providers/groq-provider.js';
 import { logger } from '../../../shared/utils/logger.js';
 
+const RETRYABLE_ERROR_KEYWORDS = [
+    'fetch failed',
+    'timeout',
+    'etimedout',
+    'socket hang up',
+    'temporarily unavailable',
+    'network',
+    'rate_limit',
+    '429',
+];
+
 class AIService {
     constructor() {
         this.providers = {};
@@ -62,12 +73,7 @@ class AIService {
         try {
             logger.debug(`Generating with primary provider: ${primaryProvider}`);
 
-            const provider = this.providers[primaryProvider];
-            if (!provider) {
-                throw new Error(`Provider not initialized: ${primaryProvider}`);
-            }
-
-            const result = await provider.generate(prompt, options);
+            const result = await this._callProviderWithRetries(primaryProvider, prompt, options);
 
             this.stats.primarySuccesses++;
             this.stats.providerUsage[primaryProvider]++;
@@ -99,12 +105,7 @@ class AIService {
                 logger.warn(`Attempting fallback to: ${fallbackProvider}`);
                 this.stats.lastFallbackTime = new Date();
 
-                const provider = this.providers[fallbackProvider];
-                if (!provider) {
-                    throw new Error(`Fallback provider not initialized: ${fallbackProvider}`);
-                }
-
-                const result = await provider.generate(prompt, options);
+                const result = await this._callProviderWithRetries(fallbackProvider, prompt, options);
 
                 this.stats.fallbackSuccesses++;
                 this.stats.providerUsage[fallbackProvider]++;
@@ -155,6 +156,7 @@ class AIService {
             'ECONNREFUSED',
             'ETIMEDOUT',
             'ENOTFOUND',
+            'fetch failed',
         ];
 
         const msg = (error.message || '').toLowerCase();
@@ -175,7 +177,7 @@ class AIService {
 
         try {
             logger.debug(`Generating vision with primary provider: ${primaryProviderName}`);
-            return await this._executeVision(primaryProviderName, prompt, imageBuffer, mimeType, options);
+            return await this._executeVisionWithRetries(primaryProviderName, prompt, imageBuffer, mimeType, options);
         } catch (primaryError) {
             logger.error(`Primary provider (${primaryProviderName}) vision failed: ${primaryError.message}`);
 
@@ -185,7 +187,7 @@ class AIService {
 
             try {
                 logger.warn(`Attempting vision fallback to: ${fallbackProviderName}`);
-                const result = await this._executeVision(fallbackProviderName, prompt, imageBuffer, mimeType, options);
+                const result = await this._executeVisionWithRetries(fallbackProviderName, prompt, imageBuffer, mimeType, options);
                 return {
                     ...result,
                     fallbackUsed: true
@@ -217,6 +219,56 @@ class AIService {
             ...result,
             provider: providerName
         };
+    }
+
+    async _executeVisionWithRetries(providerName, prompt, imageBuffer, mimeType, options) {
+        return this._retryableCall(
+            () => this._executeVision(providerName, prompt, imageBuffer, mimeType, options),
+            providerName
+        );
+    }
+
+    async _callProviderWithRetries(providerName, prompt, options) {
+        const provider = this.providers[providerName];
+
+        if (!provider) {
+            throw new Error(`Provider not initialized: ${providerName}`);
+        }
+
+        return this._retryableCall(() => provider.generate(prompt, options), providerName);
+    }
+
+    async _retryableCall(fn, providerName) {
+        const maxAttempts = 2;
+        let attempt = 0;
+        let lastError;
+
+        while (attempt < maxAttempts) {
+            try {
+                return await fn();
+            } catch (error) {
+                lastError = error;
+                attempt += 1;
+
+                const shouldRetry = this._isRetryableError(error);
+                logger.warn(
+                    `[AIService] Provider ${providerName} attempt ${attempt} failed: ${error.message}. Retryable: ${shouldRetry}`
+                );
+
+                if (!shouldRetry || attempt >= maxAttempts) {
+                    throw error;
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+            }
+        }
+
+        throw lastError;
+    }
+
+    _isRetryableError(error) {
+        const message = (error?.message || '').toLowerCase();
+        return RETRYABLE_ERROR_KEYWORDS.some((keyword) => message.includes(keyword));
     }
 
     getStats() {
