@@ -7,9 +7,14 @@ import compression from 'compression';
 import hpp from 'hpp';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import path from 'path';
+import { fileURLToPath } from 'node:url';
 import { sanitizeRequest } from './shared/middleware/sanitize.js';
 import { globalErrorHandler } from './shared/middleware/error-handler.js';
 import { logger } from './shared/utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -66,6 +71,8 @@ if (process.env.NODE_ENV !== 'test') {
   }));
 }
 
+app.use(express.static(path.join(process.cwd(), 'public')));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -85,6 +92,7 @@ import cardRoutes from './modules/deck/routes/card-routes.js';
 import homeRoutes from './modules/deck/routes/home-routes.js';
 import fileRoutes from './modules/file/routes/file-routes.js';
 import aiRoutes from './modules/ai/routes/ai-routes.js';
+import quizRoutes from './modules/quiz/routes/quiz-routes.js';
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -95,6 +103,7 @@ app.use('/api/cards', cardRoutes);
 app.use('/api/home', homeRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/quiz', quizRoutes);
 
 // Global error handler
 app.use(globalErrorHandler);
