@@ -6,14 +6,16 @@ import { jwtConfig } from '../../../config/jwt.js';
  * Generate verification link for email verification
  */
 export const generateVerificationLink = (token, baseUrl = process.env.FRONTEND_URL) => {
-  return `${baseUrl || '#'}/verify-email?token=${token}`;
+  const base = baseUrl ? baseUrl.replace(/\/$/, '') : '';
+  return `${base}/verify.html?token=${token}`;
 };
 
 /**
  * Generate reset link for password reset
  */
 export const generateResetLink = (token, baseUrl = process.env.FRONTEND_URL) => {
-  return `${baseUrl || '#'}/reset-password?token=${token}`;
+  const base = baseUrl ? baseUrl.replace(/\/$/, '') : '';
+  return `${base}/reset-password.html?token=${token}`;
 };
 
 /**

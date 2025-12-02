@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifikasi Email - Memorise</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+        .card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        .icon-container {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #1a1a1a;
+        }
+        p {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 30px;
+        }
+        .btn {
+            background-color: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s;
+            display: inline-block;
+        }
+        .btn:hover { background-color: #0056b3; }
+        .hidden { display: none; }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007AFF;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div id="loadingState">
+            <div class="loading-spinner"></div>
+            <h1>Memverifikasi...</h1>
+            <p>Mohon tunggu sebentar, kami sedang memvalidasi email Anda.</p>
+        </div>
+
+        <div id="successState" class="hidden">
+            <div class="icon-container">✅</div>
+            <h1>Berhasil!</h1>
+            <p>Email Anda telah terverifikasi. Silakan kembali ke aplikasi Memorise untuk mulai belajar.</p>
+            </div>
+
+        <div id="errorState" class="hidden">
+            <div class="icon-container">❌</div>
+            <h1>Gagal</h1>
+            <p id="errorMessage">Link verifikasi tidak valid atau sudah kedaluwarsa.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+
+            const loadingState = document.getElementById('loadingState');
+            const successState = document.getElementById('successState');
+            const errorState = document.getElementById('errorState');
+            const errorMsg = document.getElementById('errorMessage');
+
+            if (!token) {
+                showError("Token tidak ditemukan di URL.");
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5001/api/auth/verify-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+
+                const data = await response.json();
+
+                loadingState.classList.add('hidden');
+                
+                if (response.ok) {
+                    successState.classList.remove('hidden');
+                } else {
+                    showError(data.message || "Verifikasi gagal. Token mungkin sudah kedaluwarsa.");
+                }
+
+            } catch (error) {
+                loadingState.classList.add('hidden');
+                showError("Terjadi kesalahan koneksi. Coba muat ulang halaman.");
+                console.error(error);
+            }
+
+            function showError(msg) {
+                loadingState.classList.add('hidden');
+                errorState.classList.remove('hidden');
+                errorMsg.textContent = msg;
+            }
+        });
+    </script>
+</body>
+</html>

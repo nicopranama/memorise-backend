@@ -20,24 +20,24 @@ router.use(authenticate);
 // 1. Mulai Quiz
 router.get(
     '/start/:deckId', 
-    validateRequest(startQuizSchema, 'params'), // Validasi deckId
+    validateRequest(startQuizSchema, 'params'), 
     startQuiz
 );
 
 // 2. Submit Hasil
 router.post(
     '/submit', 
-    validateRequest(submitQuizSchema, 'body'), // Validasi data skor & jawaban
+    validateRequest(submitQuizSchema, 'body'), 
     submitResult
 );
 
-// 3. List Riwayat (Tidak butuh validator khusus, cuma token)
+// 3. List Riwayat 
 router.get('/history', getHistory);
 
-// 4. Detail Riwayat (Review)
+// 4. Detail Riwayat 
 router.get(
     '/:quizId', 
-    validateRequest(quizDetailSchema, 'params'), // Validasi quizId
+    validateRequest(quizDetailSchema, 'params'), 
     getQuizDetail
 );
 

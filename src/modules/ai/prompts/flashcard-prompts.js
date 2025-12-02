@@ -42,3 +42,42 @@ export const buildFlashcardsPrompt = ({
 
     Text content:${truncateText(extractedText, 8000)}`;
 
+
+export const buildQuizPrompt = ({ cards }) => {
+    const itemsText = cards.map(c =>
+        `ID: ${c._id}\nFront (Question): ${c.front}\nBack (Answer): ${c.back}`
+    ).join('\n---\n');
+
+    return `You are an expert quiz generator. For each Flashcard provided below, create a multiple-choice question data structure.
+
+    Task for each card:
+    1. Generate exactly 3 INCORRECT but plausible options (distractors) that are:
+    - Related to the topic but clearly wrong
+    - Similar in length and style to the correct answer
+    - Realistic enough to be believable but distinct from the correct answer
+    2. Generate a concise Explanation (max 2 sentences) explaining why the correct Answer is the right one.
+
+    Input Cards:
+    ${itemsText}
+
+    CRITICAL: 
+    1. You MUST return a valid JSON array. Use the EXACT ID values provided above (as strings).
+    2. Each distractor must be a meaningful, plausible wrong answer - NOT generic placeholders like "Option A".
+    3. ESCAPE all double quotes inside strings (e.g. use \\" instead of "). This is mandatory for valid JSON.
+
+    Output Requirement:
+    Return ONLY a valid JSON array (no markdown, no code blocks, no explanations) using this exact structure:
+    [
+        {
+            "id": "${cards[0]?._id || 'EXACT_ID_FROM_INPUT'}",
+            "distractors": ["First wrong but plausible answer", "Second wrong but plausible answer", "Third wrong but plausible answer"],
+            "explanation": "Brief explanation why the correct answer is right"
+        }
+    ]
+
+    IMPORTANT: 
+    - Use the EXACT ID string from the input (e.g., "${cards[0]?._id || '69286864d7ead18814744c8d'}")
+    - Generate REAL distractors, not placeholders
+    - Return valid JSON only, no markdown formatting`;
+};
+

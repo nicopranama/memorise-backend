@@ -15,6 +15,10 @@ export const generateFlashcards = asyncHandler(async (req, res) => {
     const { fileId, format, cardAmount } = req.body;
     const userId = req.user.id;
 
+    if (cardAmount > 50) {
+        throw new Error('FLASHCARD_LIMIT_EXCEEDED: Maximum 50 cards per generation.');
+    }
+
     const { deckTitle, cards } = await flashcardAIService.generateFlashcardsFromFile(
         fileId,
         userId,

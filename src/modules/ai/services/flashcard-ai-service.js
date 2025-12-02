@@ -6,9 +6,11 @@ import { logger } from '../../../shared/utils/logger.js';
 import {
     buildExtractTextPrompt,
     buildFlashcardsPrompt,
+    buildQuizPrompt
 } from '../prompts/flashcard-prompts.js';
 
-const MAX_CARDS_PER_REQUEST = 10;
+const MAX_CARDS_PER_REQUEST = 25;
+const delay = (ms) => new Promise ((resolve) => setTimeout(resolve, ms));
 
 class FlashcardAIService {
     _ensureBuffer(data) {
@@ -107,6 +109,11 @@ class FlashcardAIService {
             const aggregatedCards = [];
 
             for (let index = 0; index < batches.length; index += 1) {
+                if (index > 0) {
+                    logger.info(`[FlashcardAI] Rate limit guard: Cooling down for 4 seconds...`);
+                    await delay(2000);
+                }
+
                 const batchSize = batches[index];
                 const prompt = buildFlashcardsPrompt({
                     extractedText,
@@ -230,6 +237,119 @@ class FlashcardAIService {
         const deckTitle = (parsed.deckTitle || '').trim();
 
         return { deckTitle, cards };
+    }
+
+    async generateQuizOptions(cards) {
+        const BATCH_SIZE = 25;
+        const batches = [];
+
+        for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+            batches.push(cards.slice(i, i + BATCH_SIZE));
+        }
+
+        let quizData = [];
+
+        logger.info(`[QuizAI] Generating quiz for ${cards.length} cards in ${batches.length} batches`);
+
+        for (let i = 0; i < batches.length; i++) {
+            const batch = batches[i];
+            let result;
+            try {
+                const prompt = buildQuizPrompt({ cards: batch });
+
+                result = await aiService.generate(prompt, {
+                    temperature: 0.8,
+                    maxTokens: 4096,
+                    timeout: 60000
+                });
+
+                let jsonText = result.text.trim();
+                jsonText = jsonText.replace(/```json\n?/gi, '').replace(/```\n?/g, '');
+
+                const firstBracket = jsonText.indexOf('[');
+                const lastBracket = jsonText.lastIndexOf(']');
+
+                if (firstBracket !== -1 && lastBracket !== -1) {
+                    jsonText = jsonText.substring(firstBracket, lastBracket + 1);
+                    const parsedBatch = JSON.parse(jsonText);
+
+                    if (Array.isArray(parsedBatch) && parsedBatch.length > 0) {
+                        logger.info(`[QuizAI] Successfully parsed ${parsedBatch.length} quiz items from batch ${i + 1}`);
+                        quizData = quizData.concat(parsedBatch);
+                    } else {
+                        logger.warn(`[QuizAI] Batch ${i + 1} returned empty or invalid array`);
+                    }
+                } else {
+                    logger.warn(`[QuizAI] Batch ${i + 1} response does not contain valid JSON array`);
+                    logger.debug(`[QuizAI] Response preview: ${result.text.substring(0, 200)}...`);
+                }
+
+                if (i < batches.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+            } catch (error) {
+                logger.error(`[QuizAI] Failed batch ${i + 1} generation: ${error.message}`);
+                if (result && result.text) {
+                    logger.debug(`[QuizAI] Raw AI response: ${result.text.substring(0, 500)}...`);
+                }
+            }
+        }
+
+        logger.info(`[QuizAI] Total quiz data collected: ${quizData.length} items for ${cards.length} cards`);
+
+        const finalQuiz = cards.map((card, index) => {
+            const cardIdStr = card._id.toString();
+            let aiResult = quizData.find(q => q.id === cardIdStr);
+            
+            if (!aiResult) {
+                aiResult = quizData.find(q => 
+                    q.id && (
+                        q.id.toString() === cardIdStr ||
+                        q.id.toString().toLowerCase() === cardIdStr.toLowerCase()
+                    )
+                );
+            }
+
+            let distractors;
+            let explanation;
+            
+            if (aiResult && Array.isArray(aiResult.distractors) && aiResult.distractors.length >= 3) {
+                distractors = aiResult.distractors.slice(0, 3);
+                explanation = aiResult.explanation || `The correct answer is: ${card.back}`;
+            } else {
+                logger.warn(`[QuizAI] No valid AI result for card ${cardIdStr}, generating fallback distractors`);
+                const otherCards = cards.filter((c, idx) => idx !== index && c.back !== card.back);
+                const fallbackDistractors = [];
+                
+                for (let i = 0; i < 3 && i < otherCards.length; i++) {
+                    const randomCard = otherCards[Math.floor(Math.random() * otherCards.length)];
+                    if (randomCard && randomCard.back && !fallbackDistractors.includes(randomCard.back)) {
+                        fallbackDistractors.push(randomCard.back);
+                    }
+                }
+                
+                while (fallbackDistractors.length < 3) {
+                    fallbackDistractors.push(`Option ${String.fromCharCode(65 + fallbackDistractors.length)}`);
+                }
+                
+                distractors = fallbackDistractors.slice(0, 3);
+                explanation = `The correct answer is: ${card.back}`;
+            }
+
+            const allOptions = [card.back, ...distractors];
+            const shuffledOptions = allOptions.sort(() => Math.random() - 0.5);
+
+            return {
+                cardId: card._id,
+                question: card.front,
+                correctAnswer: card.back,
+                options: shuffledOptions,
+                explanation: explanation
+            };
+        });
+
+        return finalQuiz;
     }
 }
 
