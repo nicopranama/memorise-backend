@@ -22,6 +22,12 @@ export const redisOptions = {
     enableReadyCheck: true,
     enableOfflineQueue: true,
 
+    ...(REDIS_HOST && REDIS_HOST !== 'localhost' ? {
+        tls: {
+            rejectUnauthorized: true
+        }
+    } : {}),
+
     retryStrategy(times) {
         if (times > 10) {
             logger.error('Redis max retry attempts reached');
