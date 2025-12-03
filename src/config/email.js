@@ -24,7 +24,7 @@ if (NODE_ENV === 'production') {
     validateEmailConfig();
 }
 
-const port = Number(EMAIL_PORT) || 465;
+const port = Number(EMAIL_PORT) || 587;
 
 export const transportConfig = {
     host: EMAIL_HOST,
@@ -37,12 +37,13 @@ export const transportConfig = {
     tls: {
         rejectUnauthorized: NODE_ENV === 'production',
         minVersion: 'TLSv1.2',
+        ciphers: 'SSLv3'
     },
     pool: true,
-    maxConnections: 5,
+    maxConnections: 3,
     maxMessages: 100,
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
     socketTimeout: 30000,
 };
 
