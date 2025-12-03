@@ -3,90 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verifikasi Email - Memorise</title>
+    <title>Email Verification - Memorise</title>
     <style>
+        :root {
+            color-scheme: light;
+            --brand: #0961F5;
+            --brand-dark: #0543ad;
+            --text-main: #0f172a;
+            --text-muted: #475467;
+            --surface: #ffffff;
+        }
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f6f8;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
-            color: #333;
+            min-height: 100vh;
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: var(--text-main);
         }
         .card {
-            background: white;
-            padding: 40px 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 440px;
+            background: var(--surface);
+            border: 1px solid rgba(15,23,42,0.07);
+            border-radius: 28px;
+            padding: 48px 36px;
             text-align: center;
-            width: 90%;
-            max-width: 400px;
+            box-shadow: 0 30px 60px rgba(9, 97, 245, 0.15);
         }
-        .icon-container {
-            font-size: 48px;
+        .state-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             margin-bottom: 20px;
         }
+        .state-icon span {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            position: relative;
+        }
+        .state-icon .check::before,
+        .state-icon .cross::before,
+        .state-icon .cross::after {
+            content: "";
+            position: absolute;
+            background: #ffffff;
+            border-radius: 999px;
+        }
+        .state-icon .check::before {
+            width: 7px;
+            height: 20px;
+            left: 12px;
+            top: 6px;
+            transform: rotate(45deg);
+        }
+        .state-icon .check::after {
+            content: "";
+            position: absolute;
+            width: 7px;
+            height: 12px;
+            left: 7px;
+            top: 14px;
+            background: #ffffff;
+            border-radius: 999px;
+            transform: rotate(-45deg);
+        }
+        .state-icon .cross::before {
+            width: 7px;
+            height: 24px;
+            left: 13px;
+            top: 4px;
+            transform: rotate(45deg);
+        }
+        .state-icon .cross::after {
+            width: 7px;
+            height: 24px;
+            left: 13px;
+            top: 4px;
+            transform: rotate(-45deg);
+        }
+        .state-icon.primary,
+        .state-icon.success,
+        .state-icon.error {
+            background: var(--brand);
+            color: #fff;
+        }
         h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: #1a1a1a;
+            font-size: clamp(1.7rem, 4vw, 2.2rem);
+            margin: 0 0 12px;
         }
         p {
-            color: #666;
-            font-size: 16px;
-            line-height: 1.5;
-            margin-bottom: 30px;
+            color: var(--text-muted);
+            margin: 0 0 28px;
+            line-height: 1.6;
         }
-        .btn {
-            background-color: #007AFF;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background-color 0.2s;
-            display: inline-block;
+        .hint {
+            font-size: 0.9rem;
+            color: var(--text-muted);
         }
-        .btn:hover { background-color: #0056b3; }
-        .hidden { display: none; }
+        .hidden {
+            display: none;
+        }
         .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #007AFF;
+            border: 4px solid rgba(9, 97, 245, 0.15);
+            border-top: 4px solid var(--brand);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px auto;
+            margin: 0 auto 24px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media (max-width: 480px) {
+            .card {
+                padding: 40px 24px;
+                border-radius: 24px;
+            }
+        }
     </style>
 </head>
 <body>
-
-    <div class="card">
+    <main class="card">
         <div id="loadingState">
             <div class="loading-spinner"></div>
-            <h1>Memverifikasi...</h1>
-            <p>Mohon tunggu sebentar, kami sedang memvalidasi email Anda.</p>
+            <div class="state-icon primary"><span class="check"></span></div>
+            <h1>Verifying your email</h1>
+            <p>Sit tight for a second. We are completing your verification so you can jump back into Memorise.</p>
+            <p class="hint">This page will update automatically.</p>
         </div>
 
         <div id="successState" class="hidden">
-            <div class="icon-container">✅</div>
-            <h1>Berhasil!</h1>
-            <p>Email Anda telah terverifikasi. Silakan kembali ke aplikasi Memorise untuk mulai belajar.</p>
-            </div>
+            <div class="state-icon success"><span class="check"></span></div>
+            <h1>Email verified</h1>
+            <p>Your email address is confirmed. You can now return to the Memorise app and continue learning.</p>
+            <p class="hint">If this tab doesn’t close automatically, feel free to close it manually.</p>
+        </div>
 
         <div id="errorState" class="hidden">
-            <div class="icon-container">❌</div>
-            <h1>Gagal</h1>
-            <p id="errorMessage">Link verifikasi tidak valid atau sudah kedaluwarsa.</p>
+            <div class="state-icon error"><span class="cross"></span></div>
+            <h1>Verification failed</h1>
+            <p id="errorMessage">The verification link is invalid or has already expired.</p>
+            <p class="hint">Request a new email verification inside the app and try again.</p>
         </div>
-    </div>
+    </main>
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
@@ -99,39 +171,35 @@
             const errorMsg = document.getElementById('errorMessage');
 
             if (!token) {
-                showError("Token tidak ditemukan di URL.");
+                showError("We could not find a verification token in this link.");
                 return;
             }
 
             try {
                 const response = await fetch('http://localhost:5001/api/auth/verify-email', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ token: token })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
                 });
 
                 const data = await response.json();
-
                 loadingState.classList.add('hidden');
-                
+
                 if (response.ok) {
                     successState.classList.remove('hidden');
                 } else {
-                    showError(data.message || "Verifikasi gagal. Token mungkin sudah kedaluwarsa.");
+                    showError(data.message || "Verification failed. The token may have expired.");
                 }
-
             } catch (error) {
                 loadingState.classList.add('hidden');
-                showError("Terjadi kesalahan koneksi. Coba muat ulang halaman.");
+                showError("Something went wrong while connecting to the server. Please refresh this page and try again.");
                 console.error(error);
             }
 
-            function showError(msg) {
+            function showError(message) {
                 loadingState.classList.add('hidden');
                 errorState.classList.remove('hidden');
-                errorMsg.textContent = msg;
+                errorMsg.textContent = message;
             }
         });
     </script>

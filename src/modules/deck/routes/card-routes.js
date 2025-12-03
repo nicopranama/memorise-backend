@@ -1,6 +1,9 @@
 import express from 'express';
 import { authenticate } from '../../auth/middleware/authenticate.js';
 import { validateRequest } from '../../../shared/middleware/validate-request.js';
+import { upload, translateMulterError } from '../../file/middleware/file-upload.js';
+import { validateFileType } from '../../file/middleware/validate-file-type.js';
+import { handleCardImages } from '../middleware/handle-card-images.js';
 import {
   createCard,
   getCardsByDeck,
@@ -34,9 +37,16 @@ const router = express.Router();
 // All routes require authentication
 router.use(authenticate);
 
-// POST /api/cards - Create new card (requires deckId in body)
+// POST /api/cards - Create new card 
 router.post(
   '/',
+  upload.fields([
+    { name: 'imageFront', maxCount: 1 },
+    { name: 'imageBack', maxCount: 1 }
+  ]),
+  translateMulterError,
+  validateFileType,
+  handleCardImages,
   validateRequest(createCardSchema),
   createCard
 );
@@ -55,10 +65,17 @@ router.get(
   getCardById
 );
 
-// PATCH /api/cards/:id - Update card
+// PATCH /api/cards/:id - Update card (supports file upload for imageFront and imageBack)
 router.patch(
   '/:id',
   validateRequest(cardParamsSchema, 'params'),
+  upload.fields([
+    { name: 'imageFront', maxCount: 1 },
+    { name: 'imageBack', maxCount: 1 }
+  ]),
+  translateMulterError,
+  validateFileType,
+  handleCardImages,
   validateRequest(updateCardSchema),
   updateCard
 );

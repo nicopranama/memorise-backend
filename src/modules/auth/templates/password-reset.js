@@ -1,4 +1,4 @@
-export const passwordResetTemplate = (firstName, resetLink, expirationTime) => `
+export const passwordResetTemplate = (firstName, resetToken, expirationTime) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +15,7 @@ export const passwordResetTemplate = (firstName, resetLink, expirationTime) => `
             padding: 20px;
         }
         .header {
-            background-color: #f44336;
+            background-color: #0961F5; 
             color: white;
             padding: 20px;
             text-align: center;
@@ -25,27 +25,26 @@ export const passwordResetTemplate = (firstName, resetLink, expirationTime) => `
             background-color: #f9f9f9;
             padding: 30px;
             border-radius: 0 0 8px 8px;
+            text-align: center;
         }
-        .button {
-            display: inline-block;
-            background-color: #f44336;
-            color: white;
-            padding: 12px 24px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 20px 0;
+        
+        /* Style Khusus OTP */
+        .otp-container {
+            margin: 30px 0;
+        }
+        .otp-code {
+            font-size: 36px;
+            font-family: 'Courier New', Courier, monospace; 
             font-weight: bold;
+            letter-spacing: 8px;
+            color: #0961F5; /* Teks Biru */
+            background-color: #ffffff;
+            border: 2px dashed #0961F5; /* Border putus-putus biru */
+            padding: 15px 25px;
+            display: inline-block;
+            border-radius: 12px;
         }
-        .button:hover {
-            background-color: #da190b;
-        }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-            font-size: 14px;
-            color: #666;
-        }
+        
         .warning {
             background-color: #fff3cd;
             border: 1px solid #ffeaa7;
@@ -53,33 +52,37 @@ export const passwordResetTemplate = (firstName, resetLink, expirationTime) => `
             padding: 15px;
             border-radius: 4px;
             margin: 20px 0;
+            text-align: left;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Reset Your Password</h1>
+        <h1>Reset Password Code</h1>
     </div>
     
     <div class="content">
         <h2>Hi ${firstName},</h2>
         
-        <p>You requested to reset your password for your Memorise account. Click the button below to reset it:</p>
+        <p>You requested to reset your password. Please enter the following code in the Memorise app to continue:</p>
         
-        <div style="text-align: center;">
-            <a href="${resetLink}" class="button">Reset Password</a>
+        <div class="otp-container">
+            <div class="otp-code">
+                ${resetToken}
+            </div>
         </div>
-        
-        <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; background-color: #e9e9e9; padding: 10px; border-radius: 4px;">
-            ${resetLink}
-        </p>
         
         <div class="warning">
-            <strong>⚠️ Security Notice:</strong> This password reset link will expire in ${expirationTime}. If you didn't request this password reset, please ignore this email and your password will remain unchanged.
+            <strong>⚠️ Security Notice:</strong> Never share this code with anyone. This code will expire in ${expirationTime}. If you didn't request this, please ignore this email.
         </div>
-        
-        <p><strong>Important:</strong> For your security, this link can only be used once and will expire after ${expirationTime}.</p>
         
         <div class="footer">
             <p>Best regards,<br>The Memorise Team</p>

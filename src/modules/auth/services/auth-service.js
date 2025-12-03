@@ -189,16 +189,15 @@ export const requestPasswordResetService = async (email) => {
     await user.save(); 
 
     try {
-        const resetLink = generateResetLink(resetToken);
         const htmlContent = passwordResetTemplate(
             user.firstName, 
-            resetLink, 
+            resetToken, 
             '10 minutes'
         );
 
         await sendEmail({
             to: user.email,
-            subject: 'Reset Your Password - Memorise',
+            subject: 'Reset Password Code - Memorise',
             html: htmlContent
         }, generateIdempotencyKey('password_reset', user._id), 600);
     } catch (error) {
@@ -206,7 +205,7 @@ export const requestPasswordResetService = async (email) => {
         throw new Error('EMAIL_ERROR: Failed to send password reset email.'); 
     }
 
-    logger.info(`Password reset email initiated for: ${email}`);
+    logger.info(`Password reset OTP generated for: ${email}`);
     return true;
 
 };

@@ -24,6 +24,11 @@
             "date": 1764643444871,
             "name": "C:\\memorise-backend\\logs\\2025-12-02-exceptions.log",
             "hash": "8a19821c03888ed745ee5f2798a712d33ac3bd41c780c880974ae3cf8b368467"
+        },
+        {
+            "date": 1764733843082,
+            "name": "C:\\memorise-backend\\logs\\2025-12-03-exceptions.log",
+            "hash": "24eea0ce358fc8036f48397eb1eb3e37e1d4ebb98ef5a61b9edb1e9e6576f888"
         }
     ],
     "hashType": "sha256"

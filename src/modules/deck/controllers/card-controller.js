@@ -1,25 +1,103 @@
 import { asyncHandler } from '../../../shared/middleware/async-handler.js';
 import { successResponse, createdResponse } from '../../../shared/utils/response-utils.js';
 import * as CardService from '../services/card-service.js';
+import * as StorageService from '../../file/services/storage-service.js';
+import { logger } from '../../../shared/utils/logger.js';
 
 /**
  * Create new card
  * POST /api/cards
+ * Supports file upload for imageFront and imageBack, or URL strings
  */
 export const createCard = asyncHandler(async (req, res) => {
   const { deckId, front, back, imageFront, imageBack, notes, tags } = req.body;
   const userId = req.user.id;
+
+  let imageFrontUrl = null;
+  let imageBackUrl = null;
+
+  if (req.files) {
+    if (req.files.imageFront && req.files.imageFront[0]) {
+      try {
+        const uploadedFile = await StorageService.uploadFile(
+          req.files.imageFront[0],
+          userId,
+          { model: 'Card' }, 
+          null
+        );
+
+        imageFrontUrl = `/api/files/${uploadedFile._id}`;
+        logger.info(`ImageFront uploaded for card creation: ${uploadedFile._id}`);
+      } catch (error) {
+        logger.error(`Failed to upload imageFront: ${error.message}`);
+        throw new Error(`IMAGE_UPLOAD_ERROR: Failed to upload front image - ${error.message}`);
+      }
+    }
+
+    if (req.files.imageBack && req.files.imageBack[0]) {
+      try {
+        const uploadedFile = await StorageService.uploadFile(
+          req.files.imageBack[0],
+          userId,
+          { model: 'Card' },
+          null
+        );
+        imageBackUrl = `/api/files/${uploadedFile._id}`;
+        logger.info(`ImageBack uploaded for card creation: ${uploadedFile._id}`);
+      } catch (error) {
+        logger.error(`Failed to upload imageBack: ${error.message}`);
+        throw new Error(`IMAGE_UPLOAD_ERROR: Failed to upload back image - ${error.message}`);
+      }
+    }
+  }
+
+  if (!imageFrontUrl && imageFront) {
+    imageFrontUrl = imageFront.trim() || null;
+  }
+  if (!imageBackUrl && imageBack) {
+    imageBackUrl = imageBack.trim() || null;
+  }
 
   const card = await CardService.createCard({
     front,
     back,
     deckId,
     userId,
-    imageFront,
-    imageBack,
+    imageFront: imageFrontUrl,
+    imageBack: imageBackUrl,
     notes,
     tags
   });
+
+  if (req.files) {
+    const updatePromises = [];
+    
+    if (req.files.imageFront && req.files.imageFront[0] && imageFrontUrl) {
+      const fileId = imageFrontUrl.replace('/api/files/', '');
+      updatePromises.push(
+        StorageService.updateFileMetadata(fileId, userId, {
+          refModel: 'Card',
+          refId: card._id
+        }).catch(err => {
+          logger.error(`Failed to update imageFront file reference: ${err.message}`);
+        })
+      );
+    }
+
+    if (req.files.imageBack && req.files.imageBack[0] && imageBackUrl) {
+      const fileId = imageBackUrl.replace('/api/files/', '');
+      updatePromises.push(
+        StorageService.updateFileMetadata(fileId, userId, {
+          refModel: 'Card',
+          refId: card._id
+        }).catch(err => {
+          logger.error(`Failed to update imageBack file reference: ${err.message}`);
+        })
+      );
+    }
+
+    await Promise.all(updatePromises);
+  }
 
   return createdResponse(res, 'Card created successfully', card);
 });
@@ -53,11 +131,61 @@ export const getCardById = asyncHandler(async (req, res) => {
 /**
  * Update card
  * PATCH /api/cards/:id
+ * Supports file upload for imageFront and imageBack, or URL strings
  */
 export const updateCard = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const updateData = req.body;
+  const updateData = { ...req.body };
+
+  // Handle file uploads if present (file upload takes priority over URL in body)
+  if (req.files) {
+    // Handle imageFront file upload
+    if (req.files.imageFront && req.files.imageFront[0]) {
+      try {
+        const card = await CardService.getCardById(id, userId);
+        const uploadedFile = await StorageService.uploadFile(
+          req.files.imageFront[0],
+          userId,
+          { model: 'Card', id: card._id },
+          null
+        );
+        // Store endpoint URL for accessing the file
+        updateData.imageFront = `/api/files/${uploadedFile._id}`;
+        logger.info(`ImageFront uploaded for card update: ${uploadedFile._id}`);
+      } catch (error) {
+        logger.error(`Failed to upload imageFront: ${error.message}`);
+        throw new Error(`IMAGE_UPLOAD_ERROR: Failed to upload front image - ${error.message}`);
+      }
+    }
+
+    // Handle imageBack file upload
+    if (req.files.imageBack && req.files.imageBack[0]) {
+      try {
+        const card = await CardService.getCardById(id, userId);
+        const uploadedFile = await StorageService.uploadFile(
+          req.files.imageBack[0],
+          userId,
+          { model: 'Card', id: card._id },
+          null
+        );
+        // Store endpoint URL for accessing the file
+        updateData.imageBack = `/api/files/${uploadedFile._id}`;
+        logger.info(`ImageBack uploaded for card update: ${uploadedFile._id}`);
+      } catch (error) {
+        logger.error(`Failed to upload imageBack: ${error.message}`);
+        throw new Error(`IMAGE_UPLOAD_ERROR: Failed to upload back image - ${error.message}`);
+      }
+    }
+  }
+
+  // Clean up empty strings to null
+  if (updateData.imageFront === '') {
+    updateData.imageFront = null;
+  }
+  if (updateData.imageBack === '') {
+    updateData.imageBack = null;
+  }
 
   const card = await CardService.updateCard(id, userId, updateData);
 

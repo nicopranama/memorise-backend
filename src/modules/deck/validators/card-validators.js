@@ -28,19 +28,23 @@ export const createCardSchema = Joi.object({
       'string.min': 'Back side must be at least 1 character long',
       'string.max': 'Back side must not exceed 2000 characters'
     }),
-  imageFront: Joi.string()
-    .uri()
-    .allow('')
+  imageFront: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(''),
+      Joi.string().pattern(/^\/api\/files\/[0-9a-fA-F]{24}$/).allow('')
+    )
     .optional()
     .messages({
-      'string.uri': 'Front image must be a valid URL'
+      'alternatives.match': 'Front image must be a valid URL or file endpoint'
     }),
-  imageBack: Joi.string()
-    .uri()
-    .allow('')
+  imageBack: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(''),
+      Joi.string().pattern(/^\/api\/files\/[0-9a-fA-F]{24}$/).allow('')
+    )
     .optional()
     .messages({
-      'string.uri': 'Back image must be a valid URL'
+      'alternatives.match': 'Back image must be a valid URL or file endpoint'
     }),
   notes: Joi.string()
     .trim()
@@ -87,19 +91,23 @@ export const updateCardSchema = Joi.object({
       'string.min': 'Back side must be at least 1 character long',
       'string.max': 'Back side must not exceed 2000 characters'
     }),
-  imageFront: Joi.string()
-    .uri()
-    .allow('')
+  imageFront: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(''),
+      Joi.string().pattern(/^\/api\/files\/[0-9a-fA-F]{24}$/).allow('')
+    )
     .optional()
     .messages({
-      'string.uri': 'Front image must be a valid URL'
+      'alternatives.match': 'Front image must be a valid URL or file endpoint'
     }),
-  imageBack: Joi.string()
-    .uri()
-    .allow('')
+  imageBack: Joi.alternatives()
+    .try(
+      Joi.string().uri().allow(''),
+      Joi.string().pattern(/^\/api\/files\/[0-9a-fA-F]{24}$/).allow('')
+    )
     .optional()
     .messages({
-      'string.uri': 'Back image must be a valid URL'
+      'alternatives.match': 'Back image must be a valid URL or file endpoint'
     }),
   notes: Joi.string()
     .trim()
@@ -124,10 +132,7 @@ export const updateCardSchema = Joi.object({
     .optional()
     .messages({
       'array.max': 'Maximum 10 tags allowed'
-    }),
-  difficulty: Joi.string()
-    .valid('easy', 'medium', 'hard')
-    .optional()
+    })
 }).min(1).messages({
   'object.min': 'At least one field must be provided for update'
 });
@@ -235,9 +240,6 @@ export const bulkUpdateSchema = Joi.object({
   updateData: Joi.object({
     status: Joi.string()
       .valid('not_studied', 'learning', 'mastered')
-      .optional(),
-    difficulty: Joi.string()
-      .valid('easy', 'medium', 'hard')
       .optional(),
     tags: Joi.array()
       .items(

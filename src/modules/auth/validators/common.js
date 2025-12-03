@@ -3,9 +3,10 @@ import Joi from 'joi';
 export const emailSchema = Joi.string().email().lowercase().trim().required();
 
 export const passwordSchema = Joi.string().min(8).max(128).required()
-  .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+  .pattern(new RegExp('^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d\\W_]{8,}$'))
   .messages({
-    'string.pattern.base': 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+    'string.min': 'Password must be at least 8 characters long',
+    'string.pattern.base': 'Password must contain at least one letter and one number.'
   });
 
 export const nameSchema = Joi.string().min(1).max(50).trim().required()

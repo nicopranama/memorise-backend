@@ -24,7 +24,7 @@ if (NODE_ENV === 'production') {
     validateEmailConfig();
 }
 
-const port = Number(EMAIL_PORT) || 587;
+const port = Number(EMAIL_PORT) || 465;
 
 export const transportConfig = {
     host: EMAIL_HOST,

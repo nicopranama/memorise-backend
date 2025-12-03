@@ -15,7 +15,7 @@ export const emailVerificationTemplate = (firstName, verificationLink, expiratio
             padding: 20px;
         }
         .header {
-            background-color: #4CAF50;
+            background-color: #0961F5;
             color: white;
             padding: 20px;
             text-align: center;
@@ -28,8 +28,8 @@ export const emailVerificationTemplate = (firstName, verificationLink, expiratio
         }
         .button {
             display: inline-block;
-            background-color: #4CAF50;
-            color: white;
+            background-color: #0961F5;
+            color: #ffffff !important;
             padding: 12px 24px;
             text-decoration: none;
             border-radius: 5px;
@@ -37,7 +37,7 @@ export const emailVerificationTemplate = (firstName, verificationLink, expiratio
             font-weight: bold;
         }
         .button:hover {
-            background-color: #45a049;
+            background-color: #074ec0;
         }
         .footer {
             margin-top: 30px;
@@ -59,7 +59,9 @@ export const emailVerificationTemplate = (firstName, verificationLink, expiratio
         <p>Thank you for registering with Memorise! To complete your registration, please verify your email address by clicking the button below:</p>
         
         <div style="text-align: center;">
-            <a href="${verificationLink}" class="button">Verify Email Address</a>
+            <a href="${verificationLink}" class="button" style="background-color: #0961F5; color: #ffffff; display: inline-block; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold; mso-padding-alt:0;">
+                <span style="color: #ffffff;">Verify Email Address</span>
+            </a>
         </div>
         
         <p>If the button doesn't work, you can copy and paste this link into your browser:</p>

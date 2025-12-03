@@ -5,68 +5,62 @@ import { logger } from '../shared/utils/logger.js';
 
 dotenv.config();
 
-const provider = process.env.STORAGE_PROVIDER || 'minio';
-const bucket = process.env.STORAGE_BUCKET || 'memorise-files';
-const region = process.env.AWS_REGION || 'ap-southeast-3';
+const activeProvider = process.env.ACTIVE_PROVIDER || 'minio';
 
-const validateConfig = (config, requiredFields) => {
-    const missing = requiredFields.filter(f => !config[f]);
-    if (missing.length > 0) {
-        throw new Error(`Missing required storage config: ${missing.join(', ')}`);
+const requireEnv = (value, keyName) => {
+    if (!value) {
+      throw new Error(`CRITICAL ERROR: Missing environment variable '${keyName}' for provider '${activeProvider}'`);
     }
+    return value;
 };
 
 let storageClient = null;
-let endpointInfo = null;
+let configInfo = {};
 
-if (provider === 'minio') {
+if (activeProvider === 'minio') {
     const minioConfig = {
-        endPoint: process.env.STORAGE_ENDPOINT?.replace(/^https?:\/\//, '') || 'localhost',
-        port: Number(process.env.STORAGE_PORT) || 9000,
-        accessKey: process.env.STORAGE_ACCESS_KEY,
-        secretKey: process.env.STORAGE_SECRET_KEY,
-        useSSL: process.env.STORAGE_USE_SSL === 'true',
+        endPoint: process.env.MINIO_ENDPOINT?.replace(/^https?:\/\//, '') || 'localhost',
+        port: Number(process.env.MINIO_PORT) || 9000,
+        accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+        secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+        useSSL: process.env.MINIO_USE_SSL === 'true',
     };
-
-    if (process.env.NODE_ENV === 'production') {
-        validateConfig(minioConfig, ['accessKey', 'secretKey']);
-    } else {
-        minioConfig.accessKey = minioConfig.accessKey || 'minioadmin';
-        minioConfig.secretKey = minioConfig.secretKey || 'minioadmin';
-    }
 
     storageClient = new MinioClient(minioConfig);
-    endpointInfo = `${minioConfig.useSSL ? 'https' : 'http'}://${minioConfig.endPoint}:${minioConfig.port}`;
-    logger.info(`Storage provider configured: MinIO at ${endpointInfo}`);
-
-} else if (provider === 's3') {
-    const s3Config = {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region,
+    configInfo = {
+        provider: 'minio',
+        bucket: process.env.MINIO_BUCKET || 'memorise-files',
+        region: 'local',
+        endpoint: `${minioConfig.useSSL ? 'https' : 'http'}://${minioConfig.endPoint}:${minioConfig.port}`
     };
 
-    if (process.env.NODE_ENV === 'production') {
-        validateConfig(s3Config, ['accessKeyId', 'secretAccessKey']);
+    logger.info('[STORAGE] Using MinIO (Local)');
+
+} else if (activeProvider === 'supabase') {
+    const supabaseConfig = {
+        accessKeyId: requireEnv(process.env.SUPABASE_ACCESS_KEY, 'SUPABASE_ACCESS_KEY'),
+        secretAccessKey: requireEnv(process.env.SUPABASE_SECRET_KEY, 'SUPABASE_SECRET_KEY'),
+        endpoint: requireEnv(process.env.SUPABASE_ENDPOINT, 'SUPABASE_ENDPOINT'),
+        region: process.env.SUPABASE_REGION || 'ap-southeast-1',
+        s3ForcePathStyle: true,
+        signatureVersion: 'v4'
+    };
+
+    storageClient = new AWS.S3(supabaseConfig);
+    configInfo = {
+        provider: 's3',
+        bucket: requireEnv(process.env.SUPABASE_BUCKET, 'SUPABASE_BUCKET'),
+        region: supabaseConfig.region,
+        endpoint: supabaseConfig.endpoint
     }
 
-    AWS.config.update(s3Config);
-    storageClient = new AWS.S3({
-        apiVersion: '2006-03-01',
-        signatureVersion: 'v4',
-        ...(process.env.S3_ENDPOINT && {
-            endpoint: process.env.S3_ENDPOINT,
-            s3ForcePathStyle: true,
-        }),
-    });
+    logger.info('[STORAGE] Using Supabase (Cloud)');
 
-    endpointInfo = region;
-    logger.info(`Storage provider configured: AWS S3 in ${region}`);
 } else {
-    throw new Error(`Unsupported STORAGE_PROVIDER: ${provider}`);
+    throw new Error(`Unsupported ACTIVE_PROVIDER: ${activeProvider}`);
 }
 
-export const storageConfig = { provider, bucket, region, endpoint: endpointInfo };
+export const storageConfig = configInfo;
 
 export const getStorageClient = () => {
     if (!storageClient) throw new Error('Storage client not initialized');

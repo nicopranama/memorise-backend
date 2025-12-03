@@ -47,11 +47,6 @@ const cardSchema = new mongoose.Schema({
     enum: ['not_studied', 'learning', 'mastered'],
     default: 'not_studied'
   },
-  difficulty: {
-    type: String,
-    enum: ['easy', 'medium', 'hard'],
-    default: 'medium'
-  },
   studyData: {
     timesStudied: {
       type: Number,

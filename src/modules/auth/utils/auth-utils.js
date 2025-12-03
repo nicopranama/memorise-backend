@@ -22,7 +22,7 @@ export const generateResetLink = (token, baseUrl = process.env.FRONTEND_URL) => 
  * Generate random token for password reset
  */
 export const generateResetToken = () => {
-  return crypto.randomBytes(32).toString('hex');
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 /**
