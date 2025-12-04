@@ -33,8 +33,6 @@ import {
 } from '../validators/card-validators.js';
 
 const router = express.Router();
-
-// All routes require authentication
 router.use(authenticate);
 
 // POST /api/cards - Create new card 
