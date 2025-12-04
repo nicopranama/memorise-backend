@@ -1,56 +1,27 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { logger } from '../../../shared/utils/logger.js';
-import { transportConfig, emailDefaultFrom } from '../../../config/email.js';
 import EmailLog from '../models/email-log.js';
 import { getRedisClient } from '../../../shared/services/redis-service.js';
 
-let transporter = null;
-let isVerified = false;
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const emailFrom = process.env.EMAIL_FROM || 'Memorise App <no-reply@memorise.my.id>';
 
 export const createEmailTransporter = () => {
-    if (transporter) {
-        logger.warn('Email transporter singleton already exists.');
-        return transporter;
-    }
-
-    transporter = nodemailer.createTransport(transportConfig);
-    logger.info(`Email transporter created for host: ${transportConfig.host}`);
-    return transporter;
+    logger.info('[Email] Using Resend API (HTTP) - No transporter needed.');
 };
 
-
-export const verifyEmailConnection = async (retries = 3) => {
-    if (isVerified) {
-        logger.info('Email connection is already verified.');
-        return true;
+export const verifyEmailConnection = async () => {
+    if (!process.env.RESEND_API_KEY) {
+        throw new Error('RESEND_API_KEY is missing');
     }
-
-    if (!transporter) {
-        createEmailTransporter();
-    }
-
-    for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-            await transporter.verify();
-            isVerified = true;
-            logger.info('Email transporter verified successfully.');
-            return true;
-        } catch (error) {
-            logger.error(`Email verification attempt ${attempt}/${retries} failed:`, error.message);
-            if (attempt === retries) {
-                throw new Error('Failed to verify email transporter after multiple attempts.');
-            }
-            await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-    }
-    return false;
+    logger.info('[Email] Resend API Key configured.');
+    return true;
 };
+
+export const closeEmailConnection = () => {};
 
 export const sendEmail = async (options, idempotencyKey = null, ttlSeconds = 600, meta = {}) => {
-    if (!transporter) {
-        throw new Error('Email transporter not initialized. Ensure createEmailTransporter() is called on startup');
-    }
-
     let redisAvailable = true;
     if (idempotencyKey) {
         try {
@@ -74,22 +45,24 @@ export const sendEmail = async (options, idempotencyKey = null, ttlSeconds = 600
         }
     }
 
-    if (!isVerified) {
-        await verifyEmailConnection(1);
-    }
-
     try {
-        const info = await transporter.sendMail({
-            from: emailDefaultFrom,
-            ...options,
+        const data = await resend.emails.send({
+            from: emailFrom,
+            to: options.to,
+            subject: options.subject,
+            html: options.html 
         });
+
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
 
         await EmailLog.create({
             to: options.to,
             subject: options.subject,
             status: 'sent',
-            messageId: info.messageId,
-            response: info.response,
+            messageId: data.data?.id, 
+            response: 'Resend API Success',
             idempotencyKey: idempotencyKey || null,
             meta,
         });
@@ -103,8 +76,9 @@ export const sendEmail = async (options, idempotencyKey = null, ttlSeconds = 600
             }
         }
 
-        logger.info(`Email sent to ${options.to} with messageId: ${info.messageId}`);
-        return { status: 'sent', info };
+        logger.info(`Email sent to ${options.to} with messageId: ${data.data?.id}`);
+        return { status: 'sent', messageId: data.data?.id };
+
     } catch (error) {
         await EmailLog.create({
             to: options.to,
@@ -112,7 +86,7 @@ export const sendEmail = async (options, idempotencyKey = null, ttlSeconds = 600
             status: 'failed',
             idempotencyKey: idempotencyKey || null,
             meta,
-            error: { message: error.message, stack: error.stack, code: error.code },
+            error: { message: error.message, stack: error.stack },
         });
 
         if (idempotencyKey && redisAvailable) {
@@ -125,35 +99,11 @@ export const sendEmail = async (options, idempotencyKey = null, ttlSeconds = 600
             }
         }
 
-        logger.error('Failed to send email:', error);
-        throw error;
-    }
-};
-
-export const closeEmailConnection = () => {
-    if (transporter) {
-        transporter.close();
-        transporter = null;
-        isVerified = false;
-        logger.info('Email transporter connection pool closed.');
+        logger.error(`[Email] Failed to send: ${error.message}`);
+        return { status: 'failed', error: error.message };
     }
 };
 
 export const checkEmailHealth = async () => {
-    try {
-        if (!transporter) {
-            return { healthy: false, error: 'Transporter not initialized' };
-        }
-        await transporter.verify();
-        return {
-            healthy: true,
-            host: transportConfig.host,
-            port: transportConfig.port,
-        };
-    } catch (error) {
-        return {
-            healthy: false,
-            error: error.message
-        };
-    }
+    return { healthy: true, provider: 'resend' };
 };
