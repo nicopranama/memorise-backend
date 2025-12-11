@@ -344,6 +344,9 @@ export const getHomeData = async (userId) => {
         name: folder.name,
         description: folder.description,
         color: folder.color,
+        createdAt: folder.createdAt, 
+        updatedAt: folder.updatedAt, 
+        decksCount: decks.length,
         decks: decks.map(deck => ({
           id: deck._id,
           name: deck.name,
