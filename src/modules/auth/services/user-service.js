@@ -23,18 +23,21 @@ export const getUserProfile = async (userId) => {
 };
 
 export const updateUserProfile = async (userId, updates) => {
-    const allowed = ['firstName', 'lastName', 'profile', 'preferences'];
-    const filteredUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([key]) => allowed.includes(key))
-    );
+    const user = await User.findById(userId);
+    if (!user) throw new Error('USER_NOT_FOUND: User not found');
 
-    const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        filteredUpdates,
-        { new: true, runValidators: true }
-    );
+    if (updates.firstName) user.firstName = updates.firstName;
+    if (updates.lastName) user.lastName = updates.lastName;
+    if (updates.profile) {
+        if (updates.profile.bio !== undefined) user.profile.bio = updates.profile.bio;
+        if (updates.profile.avatar) {
+             user.profile.avatar = updates.profile.avatar;
+        }
+        if (updates.profile.language) user.profile.language = updates.profile.language;
+        if (updates.profile.timezone) user.profile.timezone = updates.profile.timezone;
+    }
 
-    if (!updatedUser) throw new Error('USER_NOT_FOUND: User not found');
+    const updatedUser = await user.save();
 
     logger.info(`User profile updated: ${updatedUser.email}`);
     return sanitizeUserData(updatedUser.toJSON ? updatedUser.toJSON() : updatedUser);
