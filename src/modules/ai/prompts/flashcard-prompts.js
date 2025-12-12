@@ -40,7 +40,7 @@ export const buildFlashcardsPrompt = ({
         "cards": [{"front": "front side content", "back": "back side content"}]
     }
 
-    Text content:${truncateText(extractedText, 8000)}`;
+    Text content:${truncateText(extractedText, 30000)}`;
 
 
 export const buildQuizPrompt = ({ cards }) => {

@@ -127,8 +127,8 @@ class FlashcardAIService {
 
                 const result = await aiService.generate(prompt, {
                     temperature: 0.7,
-                    maxTokens: 4096,
-                    timeout: 60000,
+                    maxTokens: 8192,
+                    timeout: 120000,
                 });
 
                 const { deckTitle, cards } = this._parseFlashcardResponse(result.text, batchSize);
