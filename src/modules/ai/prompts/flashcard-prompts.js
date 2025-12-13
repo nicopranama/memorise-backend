@@ -63,7 +63,6 @@ export const buildQuizPrompt = ({ cards }) => {
     CRITICAL: 
     1. You MUST return a valid JSON array. Use the EXACT ID values provided above (as strings).
     2. Each distractor must be a meaningful, plausible wrong answer - NOT generic placeholders like "Option A".
-    3. ESCAPE all double quotes inside strings (e.g. use \\" instead of "). This is mandatory for valid JSON.
 
     Output Requirement:
     Return ONLY a valid JSON array (no markdown, no code blocks, no explanations) using this exact structure:
@@ -78,6 +77,11 @@ export const buildQuizPrompt = ({ cards }) => {
     IMPORTANT: 
     - Use the EXACT ID string from the input (e.g., "${cards[0]?._id || '69286864d7ead18814744c8d'}")
     - Generate REAL distractors, not placeholders
-    - Return valid JSON only, no markdown formatting`;
+    - Return valid JSON only, no markdown formatting
+    
+    CRITICAL JSON RULE:
+    - Do NOT excape quotes manually
+    - End the response immediately after the final closing bracket ]`;
+
 };
 

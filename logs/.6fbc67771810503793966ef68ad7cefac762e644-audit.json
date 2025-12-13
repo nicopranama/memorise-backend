@@ -6,16 +6,6 @@
     "auditLog": "C:\\memorise-backend\\logs\\.6fbc67771810503793966ef68ad7cefac762e644-audit.json",
     "files": [
         {
-            "date": 1763754029149,
-            "name": "C:\\memorise-backend\\logs\\2025-11-22-exceptions.log",
-            "hash": "e2e478513b862b1884bb34e72ef78b47af703a029b6ffd2e04e09e1c508aa3c7"
-        },
-        {
-            "date": 1764246725460,
-            "name": "C:\\memorise-backend\\logs\\2025-11-27-exceptions.log",
-            "hash": "c0c628a6a7711aee31ecaeb7c4a21743acd6527fc7499f315280f7fa7d6f0939"
-        },
-        {
             "date": 1764508690632,
             "name": "C:\\memorise-backend\\logs\\2025-11-30-exceptions.log",
             "hash": "aee51a15b4f4132f8d287c001f98e41cd9c8ec0ec5e6f74d5600893f2d2e61a8"
@@ -29,6 +19,11 @@
             "date": 1764733843082,
             "name": "C:\\memorise-backend\\logs\\2025-12-03-exceptions.log",
             "hash": "24eea0ce358fc8036f48397eb1eb3e37e1d4ebb98ef5a61b9edb1e9e6576f888"
+        },
+        {
+            "date": 1765593460583,
+            "name": "C:\\memorise-backend\\logs\\2025-12-13-exceptions.log",
+            "hash": "7381eec1754913b800e6bca4805546b95ca8a358b5e4d9110ee106b6d9dd6b03"
         }
     ],
     "hashType": "sha256"

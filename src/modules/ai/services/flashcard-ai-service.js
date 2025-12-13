@@ -13,6 +13,24 @@ const MAX_CARDS_PER_REQUEST = 25;
 const delay = (ms) => new Promise ((resolve) => setTimeout(resolve, ms));
 
 class FlashcardAIService {
+    async _safeGenerateAI(prompt, options, retry = 1) {
+        try {
+            return await aiService.generate(prompt, options);
+        } catch (err) {
+            const message = err?.message || String(err) || '';
+            const isQuotaError = /quota|rate limit|exceeded|429/i.test(message);
+    
+            if (retry > 0 && !isQuotaError) {
+                logger.warn(`[AI] Retry attempt left: ${retry}. Error: ${message}`); 
+                
+                await delay(2000);
+                return this._safeGenerateAI(prompt, options, retry - 1);
+            }
+    
+            throw err;
+        }
+    }
+
     _ensureBuffer(data) {
         if (Buffer.isBuffer(data)) {
             return data;
@@ -125,7 +143,7 @@ class FlashcardAIService {
                     totalBatches: batches.length,
                 });
 
-                const result = await aiService.generate(prompt, {
+                const result = await this._safeGenerateAI(prompt, {
                     temperature: 0.7,
                     maxTokens: 8192,
                     timeout: 120000,
@@ -213,7 +231,8 @@ class FlashcardAIService {
         const lastBrace = jsonText.lastIndexOf('}');
 
         if (firstBrace !== -1 && lastBrace !== -1) {
-            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+            jsonText = jsonText.slice(firstBrace, lastBrace + 1);
+            jsonText = jsonText.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
         }
 
         const parsed = JSON.parse(jsonText);
@@ -239,8 +258,9 @@ class FlashcardAIService {
         return { deckTitle, cards };
     }
 
+
     async generateQuizOptions(cards) {
-        const BATCH_SIZE = 25;
+        const BATCH_SIZE = 5;
         const batches = [];
 
         for (let i = 0; i < cards.length; i += BATCH_SIZE) {
@@ -257,9 +277,9 @@ class FlashcardAIService {
             try {
                 const prompt = buildQuizPrompt({ cards: batch });
 
-                result = await aiService.generate(prompt, {
-                    temperature: 0.8,
-                    maxTokens: 4096,
+                result = await this._safeGenerateAI(prompt, {
+                    temperature: 0.2,
+                    maxTokens: 8192,
                     timeout: 60000
                 });
 
@@ -270,12 +290,15 @@ class FlashcardAIService {
                 const lastBracket = jsonText.lastIndexOf(']');
 
                 if (firstBracket !== -1 && lastBracket !== -1) {
-                    jsonText = jsonText.substring(firstBracket, lastBracket + 1);
-                    const parsedBatch = JSON.parse(jsonText);
+                    jsonText = jsonText.slice(firstBracket, lastBracket + 1);
+                    jsonText = jsonText.replace(/,\s*\]$/, ']');
+                
+                    const parsed = JSON.parse(jsonText);
+                    const dataArray = Array.isArray(parsed) ? parsed : (parsed.quiz || parsed.questions || []);
 
-                    if (Array.isArray(parsedBatch) && parsedBatch.length > 0) {
-                        logger.info(`[QuizAI] Successfully parsed ${parsedBatch.length} quiz items from batch ${i + 1}`);
-                        quizData = quizData.concat(parsedBatch);
+                    if (Array.isArray(dataArray) && dataArray.length > 0) {
+                        logger.info(`[QuizAI] Successfully parsed ${dataArray.length} quiz items from batch ${i + 1}`);
+                        quizData = quizData.concat(dataArray);
                     } else {
                         logger.warn(`[QuizAI] Batch ${i + 1} returned empty or invalid array`);
                     }
@@ -313,10 +336,12 @@ class FlashcardAIService {
 
             let distractors;
             let explanation;
+            let questionText;
             
             if (aiResult && Array.isArray(aiResult.distractors) && aiResult.distractors.length >= 3) {
                 distractors = aiResult.distractors.slice(0, 3);
                 explanation = aiResult.explanation || `The correct answer is: ${card.back}`;
+                questionText = aiResult.question || card.front;
             } else {
                 logger.warn(`[QuizAI] No valid AI result for card ${cardIdStr}, generating fallback distractors`);
                 const otherCards = cards.filter((c, idx) => idx !== index && c.back !== card.back);
@@ -335,6 +360,7 @@ class FlashcardAIService {
                 
                 distractors = fallbackDistractors.slice(0, 3);
                 explanation = `The correct answer is: ${card.back}`;
+                questionText = card.front;
             }
 
             const allOptions = [card.back, ...distractors];
@@ -342,7 +368,7 @@ class FlashcardAIService {
 
             return {
                 cardId: card._id,
-                question: card.front,
+                question: questionText,
                 correctAnswer: card.back,
                 options: shuffledOptions,
                 explanation: explanation
